@@ -14,41 +14,24 @@ import org.json4s.{DefaultFormats, Extraction, JValue}
 import org.json4s.native.JsonMethods._
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.FlintOptions
-import org.opensearch.flint.core.storage.{
-  FlintOpenSearchClient,
-  FlintOpenSearchIndexMetadataService,
-  OpenSearchClientUtils
-}
-import org.opensearch.flint.spark.{
-  FlintSpark,
-  FlintSparkIndexOptions,
-  FlintSparkSuite
-}
+import org.opensearch.flint.core.storage.{FlintOpenSearchClient, FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
+import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndexOptions, FlintSparkSuite}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{
-  getSkippingIndexName,
-  SKIPPING_INDEX_TYPE
-}
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, SKIPPING_INDEX_TYPE}
 import org.scalatest.Entry
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.sql.flint.config.FlintSparkConf
 
-class FlintOpenSearchMetadataCacheWriterITSuite
-    extends FlintSparkSuite
-    with Matchers {
+class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Matchers {
 
   /** Lazy initialize after container started. */
   lazy val options = new FlintOptions(openSearchOptions.asJava)
   lazy val flintClient = new FlintOpenSearchClient(options)
-  lazy val flintMetadataCacheWriter = new FlintOpenSearchMetadataCacheWriter(
-    options
-  )
-  lazy val flintIndexMetadataService = new FlintOpenSearchIndexMetadataService(
-    options
-  )
+  lazy val flintMetadataCacheWriter = new FlintOpenSearchMetadataCacheWriter(options)
+  lazy val flintIndexMetadataService = new FlintOpenSearchIndexMetadataService(options)
 
   private val testTable = "spark_catalog.default.metadatacache_test"
   private val testFlintIndex = getSkippingIndexName(testTable)
@@ -63,8 +46,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite
     FlintMetadataLogEntry.IndexState.ACTIVE,
     Map.empty[String, Any],
     "",
-    Map.empty[String, Any]
-  )
+    Map.empty[String, Any])
   private val indexStateActive = "active"
   private val indexStateCreating = "creating"
 
@@ -116,16 +98,13 @@ class FlintOpenSearchMetadataCacheWriterITSuite
     properties should have size 4
     properties should contain allOf (Entry(
       "metadataCacheVersion",
-      FlintMetadataCache.metadataCacheVersion
-    ),
+      FlintMetadataCache.metadataCacheVersion),
     Entry("lastRefreshTime", testLastRefreshCompleteTime),
     Entry("indexState", indexStateActive))
   }
 
   Seq(SKIPPING_INDEX_TYPE, COVERING_INDEX_TYPE).foreach { case kind =>
-    test(
-      s"write metadata cache to $kind index mappings with source tables for non mv index"
-    ) {
+    test(s"write metadata cache to $kind index mappings with source tables for non mv index") {
       val content =
         s""" {
            |   "_meta": {
@@ -149,22 +128,18 @@ class FlintOpenSearchMetadataCacheWriterITSuite
         flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
       properties
         .get("sourceTables")
-        .asInstanceOf[
-          java.util.ArrayList[String]
-        ] should contain theSameElementsAs Array(testTable)
+        .asInstanceOf[java.util.ArrayList[String]] should contain theSameElementsAs Array(
+        testTable)
       properties should not contain key("sourceQuery")
     }
   }
 
-  test(
-    "write metadata cache with source tables and query from mv index metadata"
-  ) {
+  test("write metadata cache with source tables and query from mv index metadata") {
     val mv = FlintSparkMaterializedView(
       "spark_catalog.default.mv",
       s"SELECT 1 FROM $testTable",
       Array(testTable),
-      Map("1" -> "integer")
-    )
+      Map("1" -> "integer"))
     val metadata =
       mv.metadata().copy(latestLogEntry = Some(flintMetadataLogEntry))
 
@@ -175,17 +150,13 @@ class FlintOpenSearchMetadataCacheWriterITSuite
       flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties
       .get("sourceTables")
-      .asInstanceOf[
-        java.util.ArrayList[String]
-      ] should contain theSameElementsAs Array(testTable)
+      .asInstanceOf[java.util.ArrayList[String]] should contain theSameElementsAs Array(testTable)
     properties
       .get("sourceQuery")
       .asInstanceOf[String] shouldBe s"SELECT 1 FROM $testTable"
   }
 
-  test(
-    "write metadata cache with source tables and query from deserialized mv metadata"
-  ) {
+  test("write metadata cache with source tables and query from deserialized mv metadata") {
     val testTable2 = "spark_catalog.default.metadatacache_test2"
     val content =
       s""" {
@@ -214,9 +185,9 @@ class FlintOpenSearchMetadataCacheWriterITSuite
       flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties
       .get("sourceTables")
-      .asInstanceOf[
-        java.util.ArrayList[String]
-      ] should contain theSameElementsAs Array(testTable, testTable2)
+      .asInstanceOf[java.util.ArrayList[String]] should contain theSameElementsAs Array(
+      testTable,
+      testTable2)
   }
 
   test("write metadata cache to index mappings with refresh interval") {
@@ -247,18 +218,12 @@ class FlintOpenSearchMetadataCacheWriterITSuite
     properties should have size 5
     properties should contain allOf (Entry(
       "metadataCacheVersion",
-      FlintMetadataCache.metadataCacheVersion
-    ),
+      FlintMetadataCache.metadataCacheVersion),
     Entry("refreshInterval", 600),
-    Entry("lastRefreshTime", testLastRefreshCompleteTime), Entry(
-      "indexState",
-      indexStateActive
-    ))
+    Entry("lastRefreshTime", testLastRefreshCompleteTime), Entry("indexState", indexStateActive))
   }
 
-  test(
-    "exclude refresh interval in metadata cache when auto refresh is false"
-  ) {
+  test("exclude refresh interval in metadata cache when auto refresh is false") {
     val content =
       """ {
         |   "_meta": {
@@ -285,9 +250,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite
     properties should not contain key("refreshInterval")
   }
 
-  test(
-    "exclude last refresh time in metadata cache when index has not been refreshed"
-  ) {
+  test("exclude last refresh time in metadata cache when index has not been refreshed") {
     val content =
       s""" {
          |   "properties": {
@@ -299,9 +262,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite
          |""".stripMargin
     val metadata = FlintOpenSearchIndexMetadataService
       .deserialize(content)
-      .copy(latestLogEntry =
-        Some(flintMetadataLogEntry.copy(lastRefreshCompleteTime = 0L))
-      )
+      .copy(latestLogEntry = Some(flintMetadataLogEntry.copy(lastRefreshCompleteTime = 0L)))
     flintClient.createIndex(testFlintIndex, metadata)
     flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
 
@@ -310,9 +271,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite
     properties should not contain key("lastRefreshTime")
   }
 
-  test(
-    "write metadata cache to index mappings and preserve other index metadata"
-  ) {
+  test("write metadata cache to index mappings and preserve other index metadata") {
     val content =
       """ {
         |   "_meta": {
@@ -357,12 +316,10 @@ class FlintOpenSearchMetadataCacheWriterITSuite
     properties should have size 5
     properties should contain allOf (Entry(
       "metadataCacheVersion",
-      FlintMetadataCache.metadataCacheVersion
-    ),
+      FlintMetadataCache.metadataCacheVersion),
     Entry("lastRefreshTime", testLastRefreshCompleteTime), Entry(
       "custom_in_properties",
-      "test_custom"
-    ),
+      "test_custom"),
     Entry("indexState", indexStateActive))
 
     // Directly get the index mapping and verify custom field is preserved
@@ -380,8 +337,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite
         "auto_refresh" -> "true",
         "scheduler_mode" -> "external",
         "refresh_interval" -> "10 Minute",
-        "checkpoint_location" -> "s3a://test/"
-      ),
+        "checkpoint_location" -> "s3a://test/"),
       s"""
          | {
          |   "indexState": "$indexStateCreating",
@@ -389,8 +345,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite
          |   "refreshInterval": 600,
          |   "sourceTables": ["$testTable"]
          | }
-         |""".stripMargin
-    ),
+         |""".stripMargin),
     (
       "full refresh index",
       Map.empty[String, String],
@@ -400,23 +355,17 @@ class FlintOpenSearchMetadataCacheWriterITSuite
          |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
          |   "sourceTables": ["$testTable"]
          | }
-         |""".stripMargin
-    ),
+         |""".stripMargin),
     (
       "incremental refresh index",
-      Map(
-        "incremental_refresh" -> "true",
-        "checkpoint_location" -> "s3a://test/"
-      ),
+      Map("incremental_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
       s"""
          | {
          |   "indexState": "$indexStateCreating",
          |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
          |   "sourceTables": ["$testTable"]
          | }
-         |""".stripMargin
-    )
-  ).foreach { case (refreshMode, optionsMap, expectedJson) =>
+         |""".stripMargin)).foreach { case (refreshMode, optionsMap, expectedJson) =>
     test(s"write metadata cache for $refreshMode") {
       withExternalSchedulerEnabled {
         val flint: FlintSpark = new FlintSpark(spark)
@@ -427,10 +376,8 @@ class FlintOpenSearchMetadataCacheWriterITSuite
               .get("checkpoint_location")
               .map(_ =>
                 optionsMap
-                  .updated("checkpoint_location", checkpointDir.getAbsolutePath)
-              )
-              .getOrElse(optionsMap)
-          )
+                  .updated("checkpoint_location", checkpointDir.getAbsolutePath))
+              .getOrElse(optionsMap))
 
           flint
             .skippingIndex()
@@ -445,9 +392,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite
 
           flint.refreshIndex(testFlintIndex)
           val lastRefreshTime =
-            compact(
-              render(getPropertiesJValue(testFlintIndex) \ "lastRefreshTime")
-            ).toLong
+            compact(render(getPropertiesJValue(testFlintIndex) \ "lastRefreshTime")).toLong
           lastRefreshTime should be > 0L
         }
       }
@@ -467,11 +412,8 @@ class FlintOpenSearchMetadataCacheWriterITSuite
               "auto_refresh" -> "true",
               "scheduler_mode" -> "internal",
               "refresh_interval" -> "10 Minute",
-              "checkpoint_location" -> checkpointDir.getAbsolutePath
-            )
-          ),
-          testFlintIndex
-        )
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testFlintIndex)
         .create()
 
       val propertiesJson = compact(render(getPropertiesJValue(testFlintIndex)))
@@ -485,9 +427,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite
             |""".stripMargin)
 
       flint.refreshIndex(testFlintIndex)
-      compact(
-        render(getPropertiesJValue(testFlintIndex))
-      ) should not include "lastRefreshTime"
+      compact(render(getPropertiesJValue(testFlintIndex))) should not include "lastRefreshTime"
     }
   }
 
