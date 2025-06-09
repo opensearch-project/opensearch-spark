@@ -37,11 +37,11 @@ public class DimensionUtils {
             DIMENSION_INSTANCE_ROLE, DimensionUtils::getInstanceRoleDimension,
             DIMENSION_JOB_ID, ignored -> getEnvironmentVariableDimension("SERVERLESS_EMR_JOB_ID", DIMENSION_JOB_ID),
             // TODO: Move FlintSparkConf into the core to prevent circular dependencies
-            DIMENSION_JOB_TYPE, ignored -> constructDimensionFromSparkConf(DIMENSION_JOB_TYPE, "spark.flint.job.type", UNKNOWN),
+            DIMENSION_JOB_TYPE, ignored -> constructDimensionFromSparkConf(DIMENSION_JOB_TYPE, "spark.flint.job.type", UNKNOWN, null),
             DIMENSION_APPLICATION_ID, ignored -> getEnvironmentVariableDimension("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", DIMENSION_APPLICATION_ID),
             DIMENSION_APPLICATION_NAME, ignored -> getEnvironmentVariableDimension("SERVERLESS_EMR_APPLICATION_NAME", DIMENSION_APPLICATION_NAME),
             DIMENSION_DOMAIN_ID, ignored -> getEnvironmentVariableDimension("FLINT_CLUSTER_NAME", DIMENSION_DOMAIN_ID),
-            DIMENSION_SEGMENT, ignored -> getSegmentDimension()
+            DIMENSION_SEGMENT, ignored -> constructDimensionFromSparkConf(DIMENSION_SEGMENT, "spark.dynamicAllocation.maxExecutors", UNKNOWN, value -> value + "e")
     );
 
     /**
@@ -61,17 +61,22 @@ public class DimensionUtils {
     }
 
     /**
-     * Constructs a CloudWatch Dimension object using a specified Spark configuration key.
+     * Constructs a dimension from Spark configuration with optional value decoration
      *
-     * @param dimensionName The name of the dimension to construct.
-     * @param sparkConfKey the Spark configuration key used to look up the value for the dimension.
-     * @param defaultValue the default value to use for the dimension if the Spark configuration key is not found or if the Spark environment is not available.
-     * @return A CloudWatch Dimension object.
-     * @throws Exception if an error occurs while accessing the Spark configuration. The exception is logged and then rethrown.
+     * @param dimensionName the name of the dimension
+     * @param sparkConfKey the Spark configuration key
+     * @param defaultValue default value if configuration is not found
+     * @param decorator function to transform the configuration value (optional)
+     * @return the constructed dimension
      */
-    public static Dimension constructDimensionFromSparkConf(String dimensionName, String sparkConfKey, String defaultValue) {
-        String propertyValue = getSparkConfValue(sparkConfKey, defaultValue);
-        return new Dimension().withName(dimensionName).withValue(propertyValue);
+    public static Dimension constructDimensionFromSparkConf(
+            String dimensionName,
+            String sparkConfKey,
+            String defaultValue,
+            Function<String, String> decorator) {
+
+            String propertyValue = getSparkConfValue(sparkConfKey, defaultValue);
+            return new Dimension().withName(dimensionName).withValue(decorator != null ? decorator.apply(propertyValue) : propertyValue);
     }
 
     // This tries to replicate the logic here: https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala#L137
@@ -91,18 +96,6 @@ public class DimensionUtils {
     private static Dimension getInstanceRoleDimension(String[] parts) {
         String value = StringUtils.isNumeric(parts[1]) ? "executor" : parts[1];
         return new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue(value);
-    }
-
-    /**
-     * Generates a dimension object representing the segment of the spark job (5e represents 5 executors) based on the
-     * spark conf
-     *
-     * @return A Dimension object with the segment.
-     * @throws Exception if an error occurs while accessing the Spark configuration. The exception is logged and then rethrown.
-     */
-    private static Dimension getSegmentDimension() {
-        String segment = getSparkConfValue("spark.dynamicAllocation.maxExecutors", UNKNOWN) + "e";
-        return new Dimension().withName(DIMENSION_SEGMENT).withValue(segment);
     }
 
     /**
