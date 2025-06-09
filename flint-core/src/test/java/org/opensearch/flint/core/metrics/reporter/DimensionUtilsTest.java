@@ -89,7 +89,25 @@ public class DimensionUtilsTest {
             SparkConf sparkConf = new SparkConf().set("spark.test.key", "testValue");
             when(sparkEnv.get().conf()).thenReturn(sparkConf);
 
-            Dimension result = DimensionUtils.constructDimensionFromSparkConf("testDimension", "spark.test.key", "defaultValue");
+            Dimension result = DimensionUtils.constructDimensionFromSparkConf("testDimension", "spark.test.key", "defaultValue", null);
+            // Assertions
+            assertEquals("testDimension", result.getName());
+            assertEquals("testValue", result.getValue());
+
+            // Reset SparkEnv mock to not affect other tests
+            Mockito.reset(SparkEnv.get());
+        }
+    }
+
+    @Test
+    public void testConstructDimensionFromSparkConfWithDecorator() {
+        try (MockedStatic<SparkEnv> sparkEnvMock = mockStatic(SparkEnv.class)) {
+            SparkEnv sparkEnv = mock(SparkEnv.class, RETURNS_DEEP_STUBS);
+            sparkEnvMock.when(SparkEnv::get).thenReturn(sparkEnv);
+            SparkConf sparkConf = new SparkConf().set("spark.test.key", "test");
+            when(sparkEnv.get().conf()).thenReturn(sparkConf);
+
+            Dimension result = DimensionUtils.constructDimensionFromSparkConf("testDimension", "spark.test.key", "defaultValue", value -> value + "Value");
             // Assertions
             assertEquals("testDimension", result.getName());
             assertEquals("testValue", result.getValue());
