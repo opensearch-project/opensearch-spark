@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import Dependencies.*
+import sbt._
+import sbt.Keys._
 
 lazy val scala212 = "2.12.14"
 lazy val sparkVersion = "3.5.1"
@@ -26,6 +28,9 @@ ThisBuild / version := "0.7.0-SNAPSHOT"
 ThisBuild / scalaVersion := scala212
 
 ThisBuild / scalafmtConfig := baseDirectory.value / "dev/.scalafmt.conf"
+
+// Add resolver for grammar downloads
+resolvers ++= GrammarDownload.grammarResolvers
 
 /**
  * ScalaStyle configurations
@@ -176,7 +181,6 @@ lazy val flintCommons = (project in file("flint-commons"))
   )
   .enablePlugins(AssemblyPlugin)
 
-
 lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
   .enablePlugins(AssemblyPlugin, Antlr4Plugin)
   .settings(
@@ -191,14 +195,31 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
       "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
       "com.github.sbt" % "junit-interface" % "0.13.3" % "test",
       "org.projectlombok" % "lombok" % "1.18.30",
-      "com.github.seancfoley" % "ipaddress" % "5.5.1",
+      "com.github.seancfoley" % "ipaddress" % "5.5.1"
     ),
     libraryDependencies ++= deps(sparkVersion),
+
+    // Define the grammar extraction task using the helper method from GrammarDownload
+    GrammarDownload.downloadPplGrammar := {
+      val log = streams.value.log
+      val baseDir = (Antlr4 / sourceDirectory).value
+      val grammarFiles = Seq("OpenSearchPPLLexer.g4", "OpenSearchPPLParser.g4")
+
+      GrammarDownload.downloadGrammar(log, baseDir, grammarFiles)
+    },
+
+    // Make ANTLR generation depend on grammar download
+    Antlr4 / antlr4Generate := {
+      val _ = GrammarDownload.downloadPplGrammar.value
+      (Antlr4 / antlr4Generate).value
+    },
+
     // ANTLR settings
     Antlr4 / antlr4Version := "4.8",
     Antlr4 / antlr4PackageName := Some("org.opensearch.flint.spark.ppl"),
     Antlr4 / antlr4GenListener := true,
     Antlr4 / antlr4GenVisitor := true,
+
     // Assembly settings
     assemblyPackageScala / assembleArtifact := false,
     assembly / assemblyOption ~= {
@@ -214,7 +235,8 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
     },
-    assembly / test := (Test / test).value)
+    assembly / test := (Test / test).value
+  )
 
 lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
   .dependsOn(flintCore, flintCommons)
@@ -232,13 +254,32 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
       "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
       "org.mockito" % "mockito-inline" % "4.6.0" % "test",
       "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
-      "com.github.sbt" % "junit-interface" % "0.13.3" % "test"),
+      "com.github.seancfoley" % "ipaddress" % "5.5.1",
+      "com.github.sbt" % "junit-interface" % "0.13.3" % "test"
+    ),
     libraryDependencies ++= deps(sparkVersion),
+
+    // Define the grammar extraction task using the helper method from GrammarDownload
+    GrammarDownload.downloadFlintGrammar := {
+      val log = streams.value.log
+      val baseDir = (Antlr4 / sourceDirectory).value
+      val grammarFiles = Seq("FlintSparkSqlExtensions.g4", "SparkSqlBase.g4")
+
+      GrammarDownload.downloadGrammar(log, baseDir, grammarFiles)
+    },
+
+    // Make ANTLR generation depend on grammar download
+    Antlr4 / antlr4Generate := {
+      val _ = GrammarDownload.downloadFlintGrammar.value
+      (Antlr4 / antlr4Generate).value
+    },
+
     // ANTLR settings
     Antlr4 / antlr4Version := "4.8",
     Antlr4 / antlr4PackageName := Some("org.opensearch.flint.spark.sql"),
     Antlr4 / antlr4GenListener := true,
     Antlr4 / antlr4GenVisitor := true,
+
     // Assembly settings
     assemblyPackageScala / assembleArtifact := false,
     assembly / assemblyOption ~= {
@@ -254,7 +295,8 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
     },
-    assembly / test := (Test / test).value)
+    assembly / test := (Test / test).value
+  )
 
 lazy val IntegrationTest = config("it") extend Test
 lazy val AwsIntegrationTest = config("aws-it") extend Test
