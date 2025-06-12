@@ -61,16 +61,31 @@ sbt integtest/awsIntegration
 [info] All tests passed.
 ```
 
-## Scala Formatting Guidelines
+## Linting
 
-For Scala code, flint use [spark scalastyle](https://github.com/apache/spark/blob/master/scalastyle-config.xml). Before submitting the PR, 
-make sure to use "scalafmtAll" to format the code. read more in [scalafmt sbt](https://scalameta.org/scalafmt/docs/installation.html#sbt)
+The easiest way to ensure the code passes linting is with `pre-commit`.
+Using any recent Python version:
+
 ```
-sbt scalafmtAll
+$ pip install pre-commit
+$ pre-commit install
 ```
-The code style is automatically checked, but users can also manually check it.
+
+This will automatically fix formatting and check for other Scala issues on every push.
+
+### Scala Formatting Guidelines
+
+For Scala code, flint use [spark scalastyle](https://github.com/apache/spark/blob/master/scalastyle-config.xml). To automatically apply the scalastyle to all files:
+
 ```
-sbt scalastyle
+$ sbt scalafmtAll
 ```
-For IntelliJ user, read more in [scalafmt IntelliJ](https://scalameta.org/scalafmt/docs/installation.html#intellij) to integrate 
+
+Alternatively, to just check changed files in the working tree:
+
+```
+$ sbt scalastyle
+```
+
+For IntelliJ users, read more in [scalafmt IntelliJ](https://scalameta.org/scalafmt/docs/installation.html#intellij) to integrate 
 scalafmt with IntelliJ

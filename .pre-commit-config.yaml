@@ -4,6 +4,7 @@ repos:
       hooks:
         -   id: sbt-unused-imports
             args: [--scope=test:compile]
+            stages: [pre-push]
         -   id: sbt-scalafmt-apply
             args: [--no-clean]
             stages: [pre-push]
