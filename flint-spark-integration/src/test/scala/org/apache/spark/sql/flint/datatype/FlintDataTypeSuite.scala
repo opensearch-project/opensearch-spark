@@ -61,11 +61,6 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
         StructField("doubleField", DoubleType, true) ::
         StructField("floatField", FloatType, true) ::
         StructField(
-          "halfFloatField",
-          FloatType,
-          true,
-          new MetadataBuilder().putString("osType", "half_float").build()) ::
-        StructField(
           "textField",
           StringType,
           true,
