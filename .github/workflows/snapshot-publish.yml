@@ -81,9 +81,6 @@ jobs:
       - name: Install required tools
         run: sudo apt-get update && sudo apt-get install -y xmlstarlet jq
 
-      - name: Make publish utilities script executable
-        run: chmod +x .github/publish-utils.sh
-
       - name: Publish snapshots and update metadata
         run: |
           # Source the utility functions
