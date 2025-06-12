@@ -182,6 +182,107 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
     index(indexName, oneNodeSetting, mappings, docs)
   }
 
+  def indexGeoPointFields(indexName: String): Unit = {
+    val mappings = """{
+                     |  "properties": {
+                     |    "id": {
+                     |      "type": "integer"
+                     |    },
+                     |    "location": {
+                     |      "type": "geo_point"
+                     |    }
+                     |  }
+                     |}""".stripMargin
+    val docs = Seq(
+      // A JSON object with "lat" and "lon" fields
+      """{
+                     |  "id": 1,
+                     |  "location": {
+                     |    "lat": 40.12,
+                     |    "lon": -71.34
+                     |  }
+                     |}""".stripMargin,
+      // A string in the "latitude,longitude" format
+      """{
+                     |  "id": 2,
+                     |  "location": "40.12,-71.34"
+                     |}""".stripMargin,
+      // A string in the "geohash" format
+      """{
+                     |  "id": 3,
+                     |  "location": "drjk0"
+                     |}""".stripMargin,
+      // A string in the "WKT" format
+      """{
+                     |  "id": 4,
+                     |  "location": "POINT (-71.34 40.12)"
+                     |}""".stripMargin,
+      // A string in the "GeoJSON" format
+      """{
+                     |  "id": 5,
+                     |  "location": {
+                     |    "type": "Point",
+                     |    "coordinates": [-71.34,40.12]
+                     |  }
+                     |}""".stripMargin)
+    index(indexName, oneNodeSetting, mappings, docs)
+  }
+
+  def indexWithNumericFields(indexName: String): Unit = {
+    val mappings = """{
+                     |  "properties": {
+                     |    "id": {
+                     |      "type": "integer"
+                     |    },
+                     |    "floatField": {
+                     |      "type": "float"
+                     |    },
+                     |    "halfFloatField": {
+                     |      "type": "half_float"
+                     |    }
+                     |  }
+                     |}""".stripMargin
+    val docs = Seq(
+      """{
+                     |  "id": 1,
+                     |  "floatField": 1.1,
+                     |  "halfFloatField": 1.2
+                     |}""".stripMargin,
+      """{
+                    |  "id": 2,
+                    |  "floatField": 2.1,
+                    |  "halfFloatField": 2.2
+                    |}""".stripMargin)
+    index(indexName, oneNodeSetting, mappings, docs)
+  }
+
+  def indexWithIp(indexName: String): Unit = {
+    val mappings = """{
+                     |  "properties": {
+                     |    "client": {
+                     |      "type": "ip"
+                     |    },
+                     |    "server": {
+                     |      "type": "ip"
+                     |    }
+                     |  }
+                     |}""".stripMargin
+    val docs = Seq(
+      """{
+                      |  "client": "192.168.0.10",
+                      |  "server": "100.10.12.123"
+                      |}""".stripMargin,
+      """{
+                      |  "client": "192.168.0.11",
+                      |  "server": "100.10.12.123"
+                      |}""".stripMargin,
+      """{
+                      |  "client": "::ffff:192.168.0.10",
+                      |  "server": "::ffff:100.10.12.123"
+                      |}""".stripMargin)
+    index(indexName, oneNodeSetting, mappings, docs)
+  }
+
   def index(index: String, settings: String, mappings: String, docs: Seq[String]): Unit = {
     openSearchClient.indices.create(
       new CreateIndexRequest(index)
