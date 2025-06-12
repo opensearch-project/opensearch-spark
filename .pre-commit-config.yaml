@@ -3,10 +3,8 @@ repos:
       rev: v0.5.0
       default_phase: push #change to commit if desired
       hooks: #mix and match any of the following:
-        -   id: sbt-fatal-warnings #arguments optional
-            args: [--scope=test:compile]
         -   id: sbt-unused-imports #includes fatal warnings, arguments optional
             args: [--scope=test:compile]
         -   id: sbt-scalafmt-apply
             args: [--no-clean]
-            stages: [push]
+            stages: [pre-push]
