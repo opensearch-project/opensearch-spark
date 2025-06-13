@@ -1,6 +1,6 @@
 repos:
   -   repo: https://github.com/Swiddis/scala-pre-commit-hooks
-      # Temporary revision. This rev allows 122000% faster builds. Switch back to the official repo after it's merged.
+      # Temporary revision. This rev allows 2000% faster builds. Switch back to the official repo after it's merged.
       # See: https://github.com/softwaremill/scala-pre-commit-hooks/pull/17
       rev: e51db1845c66c1b9a278be320dbaa345bd52fb9a
       hooks:
