@@ -9,6 +9,8 @@ import dev.failsafe.Failsafe;
 import dev.failsafe.FailsafeException;
 import dev.failsafe.RetryPolicy;
 import dev.failsafe.function.CheckedPredicate;
+
+import java.time.Clock;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -24,6 +26,10 @@ import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.flint.core.http.FlintRetryOptions;
 import org.opensearch.flint.core.metrics.MetricConstants;
 import org.opensearch.flint.core.metrics.MetricsUtil;
+import org.opensearch.flint.core.storage.ratelimit.BulkRequestRateLimiter;
+import org.opensearch.flint.core.storage.ratelimit.RetryableFailureRequestFeedback;
+import org.opensearch.flint.core.storage.ratelimit.SuccessRequestFeedback;
+import org.opensearch.flint.core.storage.ratelimit.TimeoutRequestFeedback;
 import org.opensearch.rest.RestStatus;
 
 /**
@@ -36,11 +42,17 @@ public class OpenSearchBulkWrapper {
   private final RetryPolicy<BulkResponse> retryPolicy;
   private final BulkRequestRateLimiter rateLimiter;
   private final Set<Integer> retryableStatusCodes;
+  private final Clock clock;
 
   public OpenSearchBulkWrapper(FlintRetryOptions retryOptions, BulkRequestRateLimiter rateLimiter) {
+    this(retryOptions, rateLimiter, Clock.systemUTC());
+  }
+
+  public OpenSearchBulkWrapper(FlintRetryOptions retryOptions, BulkRequestRateLimiter rateLimiter, Clock clock) {
     this.retryPolicy = retryOptions.getBulkRetryPolicy(bulkItemRetryableResultPredicate);
     this.rateLimiter = rateLimiter;
     this.retryableStatusCodes = retryOptions.getRetryableHttpStatusCodes();
+    this.clock = clock;
   }
 
   /**
@@ -71,19 +83,31 @@ public class OpenSearchBulkWrapper {
           })
           .get(() -> {
             requestCount.incrementAndGet();
-            rateLimiter.acquirePermit(nextRequest.get().requests().size());
-            BulkResponse response = client.bulk(nextRequest.get(), options);
+            // converting to int should be safe because bulk request bytes is restricted by batch_bytes config
+            int requestSize = (int) nextRequest.get().estimatedSizeInBytes();
+            rateLimiter.acquirePermit(requestSize);
 
-            if (!bulkItemRetryableResultPredicate.test(response)) {
-              rateLimiter.increaseRate();
-            } else {
-              LOG.info("Bulk request failed. attempt = " + (requestCount.get() - 1));
-              rateLimiter.decreaseRate();
-              if (retryPolicy.getConfig().allowsRetries()) {
-                nextRequest.set(getRetryableRequest(nextRequest.get(), response));
+            try {
+              long startTime = clock.millis();
+              BulkResponse response = client.bulk(nextRequest.get(), options);
+              long latency = clock.millis() - startTime;
+
+              if (!bulkItemRetryableResultPredicate.test(response)) {
+                rateLimiter.adaptToFeedback(SuccessRequestFeedback.create(latency));
+              } else {
+                LOG.info("Bulk request failed. attempt = " + (requestCount.get() - 1));
+                rateLimiter.adaptToFeedback(RetryableFailureRequestFeedback.create(latency));
+                if (retryPolicy.getConfig().allowsRetries()) {
+                  nextRequest.set(getRetryableRequest(nextRequest.get(), response));
+                }
               }
+              return response;
+            } catch (Exception e) {
+              if (isTimeoutException(e)) {
+                rateLimiter.adaptToFeedback(TimeoutRequestFeedback.create());
+              }
+              throw e; // let Failsafe retry policy decide
             }
-            return response;
           });
       return res;
     } catch (FailsafeException ex) {
@@ -95,6 +119,13 @@ public class OpenSearchBulkWrapper {
       MetricsUtil.addHistoricGauge(MetricConstants.OPENSEARCH_BULK_SIZE_METRIC, bulkRequest.estimatedSizeInBytes());
       MetricsUtil.addHistoricGauge(MetricConstants.OPENSEARCH_BULK_RETRY_COUNT_METRIC, requestCount.get() - 1);
     }
+  }
+
+  private boolean isTimeoutException(Exception e) {
+    return e instanceof java.net.SocketTimeoutException ||
+        e instanceof  java.net.ConnectException ||
+        e.getCause() instanceof java.net.SocketTimeoutException ||
+        e.getCause() instanceof java.net.ConnectException;
   }
 
   private BulkRequest getRetryableRequest(BulkRequest request, BulkResponse response) {
