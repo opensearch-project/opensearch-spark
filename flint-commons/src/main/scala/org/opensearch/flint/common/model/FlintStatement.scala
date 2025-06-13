@@ -66,6 +66,8 @@ class FlintStatement(
 
   def isWaiting: Boolean = state.equalsIgnoreCase(StatementStates.WAITING)
 
+  def isTimeout: Boolean = state.equalsIgnoreCase(StatementStates.TIMEOUT)
+
   // Does not include context, which could contain sensitive information.
   override def toString: String =
     s"FlintStatement(state=$state, statementId=$statementId, queryId=$queryId, langType=$langType, submitTime=$submitTime, error=$error)"
