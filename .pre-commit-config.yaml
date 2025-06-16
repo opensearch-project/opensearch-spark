@@ -1,8 +1,6 @@
 repos:
-  -   repo: https://github.com/Swiddis/scala-pre-commit-hooks
-      # Temporary revision. This rev allows 2000% faster builds. Switch back to the official repo after it's merged.
-      # See: https://github.com/softwaremill/scala-pre-commit-hooks/pull/17
-      rev: e51db1845c66c1b9a278be320dbaa345bd52fb9a
+  -   repo: https://github.com/softwaremill/scala-pre-commit-hooks
+      rev: v0.5.1
       hooks:
         -   id: sbt-unused-imports
             args: [--no-clean, --scope=test:compile, --client]
