@@ -8,6 +8,11 @@ on:
       - 0.*
       - commit-metadata-poc
 
+# Concurrency control to prevent race conditions in commit mapping
+concurrency:
+  group: maven-publish-spark-snapshots
+  cancel-in-progress: false
+
 jobs:
   build-and-publish-snapshots:
     strategy:

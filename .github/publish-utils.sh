@@ -140,40 +140,38 @@ process_project_metadata() {
   rm -rf "${TEMP_DIR}"
 }
 
-# Function to create/update commit ID to version mapping
-update_commit_mapping() {
-  local current_version="$1"
-  local commit_id="$2"
-  local snapshot_repo_url="$3"
+# Function to create/update commit ID to version mapping for a specific project
+update_commit_mapping_for_project() {
+  local project="$1"
+  local current_version="$2"
+  local commit_id="$3"
+  local snapshot_repo_url="$4"
 
-  echo "Creating/updating commit ID to version mapping..."
+  echo "Creating/updating commit ID to version mapping for ${project}..."
 
   MAPPING_DIR=$(mktemp -d)
-  MAPPING_FILE="${MAPPING_DIR}/commit-history.json"
-  GROUP_PATH="org/opensearch"
 
-  # Define the URL for the mapping file (renamed to commit-history.json)
-  MAPPING_URL="${snapshot_repo_url}${GROUP_PATH}/commit-history.json"
+  # Generate artifact-specific commit history filename
+  local commit_map_filename="commit-history-${project}.json"
+  MAPPING_FILE="${MAPPING_DIR}/${commit_map_filename}"
+
+  # Define the URL for the mapping file in the artifact directory
+  MAPPING_URL="${snapshot_repo_url}org/opensearch/${project}/${commit_map_filename}"
 
   # Try to download existing mapping file if it exists
   if execute_curl_with_retry "$MAPPING_URL" "GET" "$MAPPING_FILE"; then
-    echo "Downloaded existing commit history file"
+    echo "Downloaded existing commit history file for ${project}"
   else
-    echo "No existing commit history file found, creating new one"
+    echo "No existing commit history file found for ${project}, creating new one"
     echo '{"mappings":[]}' > "${MAPPING_FILE}"
   fi
 
-  # Create JSON object with artifact versions
-  ARTIFACTS_JSON="{"
-  for project in "${!ACTUAL_VERSIONS[@]}"; do
-    if [ "${ARTIFACTS_JSON}" != "{" ]; then
-      ARTIFACTS_JSON="${ARTIFACTS_JSON},"
-    fi
-    ARTIFACTS_JSON="${ARTIFACTS_JSON}\"${project}\": \"${ACTUAL_VERSIONS[$project]}\""
-  done
-  ARTIFACTS_JSON="${ARTIFACTS_JSON}}"
-
-  echo "Artifacts JSON: ${ARTIFACTS_JSON}"
+  # Get the actual artifact version for this project
+  local artifact_version="${ACTUAL_VERSIONS[$project]}"
+  if [ -z "$artifact_version" ]; then
+    echo "Warning: No artifact version found for ${project}, using base version"
+    artifact_version="$current_version"
+  fi
 
   # Add new mapping entry
   TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -181,15 +179,22 @@ update_commit_mapping() {
   # Use temporary file for JSON manipulation
   TEMP_JSON="${MAPPING_DIR}/temp.json"
 
-  # Use jq to add the new mapping
+  # Use jq to add the new mapping or update existing one
   cat "${MAPPING_FILE}" | jq --arg commit "$commit_id" \
-                              --arg version "$current_version" \
                               --arg timestamp "$TIMESTAMP" \
-                              --argjson artifacts "$ARTIFACTS_JSON" '
+                              --arg project "$project" \
+                              --arg base_version "$current_version" \
+                              --arg artifact_version "$artifact_version" '
+  # Look for an existing entry with this commit ID
   if (.mappings | map(select(.commit_id == $commit)) | length) == 0 then
-    .mappings += [{"commit_id": $commit, "version": $version, "timestamp": $timestamp, "artifacts": $artifacts}]
+    # No entry exists, add a new one
+    .mappings += [{"commit_id": $commit, "timestamp": $timestamp, "artifacts": {($project): {"base_version": $base_version, "artifact_version": $artifact_version}}}]
   else
-    .mappings = [.mappings[] | if .commit_id == $commit then . + {"artifacts": $artifacts} else . end]
+    # Update the existing entry
+    .mappings = [.mappings[] | if .commit_id == $commit then
+      # Update timestamp and merge artifacts
+      . + {"timestamp": $timestamp, "artifacts": (.artifacts + {($project): {"base_version": $base_version, "artifact_version": $artifact_version}})}
+    else . end]
   end
   ' > "${TEMP_JSON}"
 
@@ -200,15 +205,15 @@ update_commit_mapping() {
   mv "${TEMP_JSON}" "${MAPPING_FILE}"
 
   # Print the updated mapping for debugging
-  echo "Updated commit history file content:"
+  echo "Updated commit history file content for ${project}:"
   cat "${MAPPING_FILE}"
 
   # Upload the mapping file
   echo "Uploading commit history file to ${MAPPING_URL}"
   if execute_curl_with_retry "$MAPPING_URL" "PUT" "" "$MAPPING_FILE"; then
-    echo "Successfully uploaded commit history file"
+    echo "Successfully uploaded commit history file for ${project}"
   else
-    echo "Failed to upload commit history file"
+    echo "Failed to upload commit history file for ${project}"
     exit 1
   fi
 
@@ -235,12 +240,13 @@ publish_snapshots_and_update_metadata() {
 
   echo "Snapshot publishing completed. Now uploading commit ID metadata..."
 
-  # For each project, create and upload a modified metadata file
+  # Define the Spark projects
   PROJECTS=("opensearch-spark-standalone_2.12" "opensearch-spark-ppl_2.12" "opensearch-spark-sql-application_2.12")
 
   # Create a dictionary to store the actual artifact versions
   declare -A ACTUAL_VERSIONS
 
+  # Process metadata for each project
   for PROJECT in "${PROJECTS[@]}"; do
     process_project_metadata "$PROJECT" "$current_version" "$commit_id"
   done
@@ -251,6 +257,10 @@ publish_snapshots_and_update_metadata() {
     echo "$project: ${ACTUAL_VERSIONS[$project]}"
   done
 
-  # Create/update the global commit ID to version mapping file
-  update_commit_mapping "$current_version" "$commit_id" "$SNAPSHOT_REPO_URL"
+  # Create/update commit ID to version mapping for each project
+  for PROJECT in "${PROJECTS[@]}"; do
+    update_commit_mapping_for_project "$PROJECT" "$current_version" "$commit_id" "$SNAPSHOT_REPO_URL"
+  done
+
+  echo "All commit mapping files updated successfully"
 }
