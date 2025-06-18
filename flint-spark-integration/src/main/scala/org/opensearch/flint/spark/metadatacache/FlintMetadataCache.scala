@@ -26,7 +26,13 @@ case class FlintMetadataCache(
     /** Source query for MV */
     sourceQuery: Option[String],
     /** Timestamp when Flint index is last refreshed. Unit: milliseconds */
-    lastRefreshTime: Option[Long]) {
+    lastRefreshTime: Option[Long],
+    /**
+     * The current index state per the Flint state machine
+     * @see
+     *   https://github.com/opensearch-project/opensearch-spark/blob/main/docs/index.md#index-state-transition-1
+     */
+    indexState: Option[String]) {
 
   /**
    * Convert FlintMetadataCache to a map. Skips a field if its value is not defined.
@@ -76,12 +82,17 @@ object FlintMetadataCache {
         case timestamp => Some(timestamp)
       }
     }
+    val indexState = metadata.latestLogEntry match {
+      case Some(entry) => Some(entry.state.toString)
+      case None => None
+    }
 
     FlintMetadataCache(
       metadataCacheVersion,
       refreshInterval,
       sourceTables,
       sourceQuery,
-      lastRefreshTime)
+      lastRefreshTime,
+      indexState)
   }
 }

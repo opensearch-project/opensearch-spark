@@ -30,16 +30,18 @@ public class DimensionUtils {
     private static final String DIMENSION_DOMAIN_ID = "domainId";
     private static final String DIMENSION_INSTANCE_ROLE = "instanceRole";
     private static final String UNKNOWN = "UNKNOWN";
+    private static final String DIMENSION_SEGMENT = "segment";
 
     // Maps dimension names to functions that generate Dimension objects based on specific logic or environment variables
     private static final Map<String, Function<String[], Dimension>> dimensionBuilders = Map.of(
             DIMENSION_INSTANCE_ROLE, DimensionUtils::getInstanceRoleDimension,
             DIMENSION_JOB_ID, ignored -> getEnvironmentVariableDimension("SERVERLESS_EMR_JOB_ID", DIMENSION_JOB_ID),
             // TODO: Move FlintSparkConf into the core to prevent circular dependencies
-            DIMENSION_JOB_TYPE, ignored -> constructDimensionFromSparkConf(DIMENSION_JOB_TYPE, "spark.flint.job.type", UNKNOWN),
+            DIMENSION_JOB_TYPE, ignored -> constructDimensionFromSparkConf(DIMENSION_JOB_TYPE, "spark.flint.job.type", UNKNOWN, null),
             DIMENSION_APPLICATION_ID, ignored -> getEnvironmentVariableDimension("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", DIMENSION_APPLICATION_ID),
             DIMENSION_APPLICATION_NAME, ignored -> getEnvironmentVariableDimension("SERVERLESS_EMR_APPLICATION_NAME", DIMENSION_APPLICATION_NAME),
-            DIMENSION_DOMAIN_ID, ignored -> getEnvironmentVariableDimension("FLINT_CLUSTER_NAME", DIMENSION_DOMAIN_ID)
+            DIMENSION_DOMAIN_ID, ignored -> getEnvironmentVariableDimension("FLINT_CLUSTER_NAME", DIMENSION_DOMAIN_ID),
+            DIMENSION_SEGMENT, ignored -> constructDimensionFromSparkConf(DIMENSION_SEGMENT, "spark.dynamicAllocation.maxExecutors", UNKNOWN, value -> value + "e")
     );
 
     /**
@@ -59,27 +61,22 @@ public class DimensionUtils {
     }
 
     /**
-     * Constructs a CloudWatch Dimension object using a specified Spark configuration key.
+     * Constructs a dimension from Spark configuration with optional value decoration
      *
-     * @param dimensionName The name of the dimension to construct.
-     * @param sparkConfKey the Spark configuration key used to look up the value for the dimension.
-     * @param defaultValue the default value to use for the dimension if the Spark configuration key is not found or if the Spark environment is not available.
-     * @return A CloudWatch Dimension object.
-     * @throws Exception if an error occurs while accessing the Spark configuration. The exception is logged and then rethrown.
+     * @param dimensionName the name of the dimension
+     * @param sparkConfKey the Spark configuration key
+     * @param defaultValue default value if configuration is not found
+     * @param decorator function to transform the configuration value (optional)
+     * @return the constructed dimension
      */
-    public static Dimension constructDimensionFromSparkConf(String dimensionName, String sparkConfKey, String defaultValue) {
-        String propertyValue = defaultValue;
-        try {
-            if (SparkEnv.get() != null && SparkEnv.get().conf() != null) {
-                propertyValue = SparkEnv.get().conf().get(sparkConfKey, defaultValue);
-            } else {
-                LOG.warning("Spark environment or configuration is not available, defaulting to provided default value.");
-            }
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Error accessing Spark configuration with key: " + sparkConfKey + ", defaulting to provided default value.", e);
-            throw e;
-        }
-        return new Dimension().withName(dimensionName).withValue(propertyValue);
+    public static Dimension constructDimensionFromSparkConf(
+            String dimensionName,
+            String sparkConfKey,
+            String defaultValue,
+            Function<String, String> decorator) {
+
+            String propertyValue = getSparkConfValue(sparkConfKey, defaultValue);
+            return new Dimension().withName(dimensionName).withValue(decorator != null ? decorator.apply(propertyValue) : propertyValue);
     }
 
     // This tries to replicate the logic here: https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala#L137
@@ -123,5 +120,28 @@ public class DimensionUtils {
      */
     private static Dimension getDefaultDimension(String dimensionName) {
         return getEnvironmentVariableDimension(dimensionName, dimensionName);
+    }
+
+    /**
+     * Retrieves the value of a specific spark configuration key
+     *
+     * @param sparkConfKey the Spark configuration key used to look up the value for the dimension.
+     * @param defaultValue the default value to use for the dimension if the Spark configuration key is not found or if the Spark environment is not available.
+     * @return A CloudWatch Dimension object.
+     * @throws Exception if an error occurs while accessing the Spark configuration. The exception is logged and then rethrown.
+     */
+    private static String getSparkConfValue(String sparkConfKey, String defaultValue) {
+        String propertyValue = defaultValue;
+        try {
+            if (SparkEnv.get() != null && SparkEnv.get().conf() != null) {
+                propertyValue = SparkEnv.get().conf().get(sparkConfKey, defaultValue);
+            } else {
+                LOG.warning("Spark environment or configuration is not available, defaulting to provided default value.");
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Error accessing Spark configuration with key: " + sparkConfKey + ", defaulting to provided default value.", e);
+            throw e;
+        }
+        return propertyValue;
     }
 }

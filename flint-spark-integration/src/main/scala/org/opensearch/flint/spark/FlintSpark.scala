@@ -142,6 +142,9 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
             }
             flintClient.createIndex(indexName, metadata)
             flintIndexMetadataService.updateIndexMetadata(indexName, metadata)
+            // We don't update the cache to the "active" state when exiting the finalLog, since `commit` is only called
+            // for transientLog. This is intended: it lets the frontend see the index in the "creating" state until the
+            // first refresh is in action, then that refresh pushes it to "active."
             flintMetadataCacheWriter.updateMetadataCache(indexName, metadata)
             jobSchedulingService.handleJob(index, AsyncQuerySchedulerAction.SCHEDULE)
           })

@@ -35,7 +35,8 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
 
   private val testTable = "spark_catalog.default.metadatacache_test"
   private val testFlintIndex = getSkippingIndexName(testTable)
-  private val testLatestId: String = Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
+  private val testLatestId: String =
+    Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
   private val testLastRefreshCompleteTime = 1234567890123L
   private val flintMetadataLogEntry = FlintMetadataLogEntry(
     testLatestId,
@@ -46,6 +47,8 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     Map.empty[String, Any],
     "",
     Map.empty[String, Any])
+  private val indexStateActive = "active"
+  private val indexStateCreating = "creating"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -90,12 +93,14 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     flintClient.createIndex(testFlintIndex, metadata)
     flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
 
-    val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
-    properties should have size 3
+    val properties =
+      flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
+    properties should have size 4
     properties should contain allOf (Entry(
       "metadataCacheVersion",
       FlintMetadataCache.metadataCacheVersion),
-    Entry("lastRefreshTime", testLastRefreshCompleteTime))
+    Entry("lastRefreshTime", testLastRefreshCompleteTime),
+    Entry("indexState", indexStateActive))
   }
 
   Seq(SKIPPING_INDEX_TYPE, COVERING_INDEX_TYPE).foreach { case kind =>
@@ -119,7 +124,8 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       flintClient.createIndex(testFlintIndex, metadata)
       flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
 
-      val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
+      val properties =
+        flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
       properties
         .get("sourceTables")
         .asInstanceOf[java.util.ArrayList[String]] should contain theSameElementsAs Array(
@@ -134,12 +140,14 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       s"SELECT 1 FROM $testTable",
       Array(testTable),
       Map("1" -> "integer"))
-    val metadata = mv.metadata().copy(latestLogEntry = Some(flintMetadataLogEntry))
+    val metadata =
+      mv.metadata().copy(latestLogEntry = Some(flintMetadataLogEntry))
 
     flintClient.createIndex(testFlintIndex, metadata)
     flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
 
-    val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
+    val properties =
+      flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties
       .get("sourceTables")
       .asInstanceOf[java.util.ArrayList[String]] should contain theSameElementsAs Array(testTable)
@@ -173,7 +181,8 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     flintClient.createIndex(testFlintIndex, metadata)
     flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
 
-    val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
+    val properties =
+      flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties
       .get("sourceTables")
       .asInstanceOf[java.util.ArrayList[String]] should contain theSameElementsAs Array(
@@ -204,13 +213,14 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     flintClient.createIndex(testFlintIndex, metadata)
     flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
 
-    val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
-    properties should have size 4
+    val properties =
+      flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
+    properties should have size 5
     properties should contain allOf (Entry(
       "metadataCacheVersion",
       FlintMetadataCache.metadataCacheVersion),
     Entry("refreshInterval", 600),
-    Entry("lastRefreshTime", testLastRefreshCompleteTime))
+    Entry("lastRefreshTime", testLastRefreshCompleteTime), Entry("indexState", indexStateActive))
   }
 
   test("exclude refresh interval in metadata cache when auto refresh is false") {
@@ -235,7 +245,8 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     flintClient.createIndex(testFlintIndex, metadata)
     flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
 
-    val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
+    val properties =
+      flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties should not contain key("refreshInterval")
   }
 
@@ -255,7 +266,8 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     flintClient.createIndex(testFlintIndex, metadata)
     flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
 
-    val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
+    val properties =
+      flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties should not contain key("lastRefreshTime")
   }
 
@@ -290,17 +302,25 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
 
     flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
 
-    flintIndexMetadataService.getIndexMetadata(testFlintIndex).kind shouldBe "test_kind"
-    flintIndexMetadataService.getIndexMetadata(testFlintIndex).name shouldBe "test_name"
-    flintIndexMetadataService.getIndexMetadata(testFlintIndex).schema should have size 1
-    val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
-    properties should have size 4
+    flintIndexMetadataService
+      .getIndexMetadata(testFlintIndex)
+      .kind shouldBe "test_kind"
+    flintIndexMetadataService
+      .getIndexMetadata(testFlintIndex)
+      .name shouldBe "test_name"
+    flintIndexMetadataService
+      .getIndexMetadata(testFlintIndex)
+      .schema should have size 1
+    val properties =
+      flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
+    properties should have size 5
     properties should contain allOf (Entry(
       "metadataCacheVersion",
       FlintMetadataCache.metadataCacheVersion),
     Entry("lastRefreshTime", testLastRefreshCompleteTime), Entry(
       "custom_in_properties",
-      "test_custom"))
+      "test_custom"),
+    Entry("indexState", indexStateActive))
 
     // Directly get the index mapping and verify custom field is preserved
     flintMetadataCacheWriter
@@ -320,6 +340,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
         "checkpoint_location" -> "s3a://test/"),
       s"""
          | {
+         |   "indexState": "$indexStateCreating",
          |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
          |   "refreshInterval": 600,
          |   "sourceTables": ["$testTable"]
@@ -330,6 +351,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       Map.empty[String, String],
       s"""
          | {
+         |   "indexState": "$indexStateCreating",
          |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
          |   "sourceTables": ["$testTable"]
          | }
@@ -339,6 +361,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       Map("incremental_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
       s"""
          | {
+         |   "indexState": "$indexStateCreating",
          |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
          |   "sourceTables": ["$testTable"]
          | }
@@ -351,7 +374,9 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
           val indexOptions = FlintSparkIndexOptions(
             optionsMap
               .get("checkpoint_location")
-              .map(_ => optionsMap.updated("checkpoint_location", checkpointDir.getAbsolutePath))
+              .map(_ =>
+                optionsMap
+                  .updated("checkpoint_location", checkpointDir.getAbsolutePath))
               .getOrElse(optionsMap))
 
           flint
@@ -361,7 +386,8 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
             .options(indexOptions, testFlintIndex)
             .create()
 
-          val propertiesJson = compact(render(getPropertiesJValue(testFlintIndex)))
+          val propertiesJson =
+            compact(render(getPropertiesJValue(testFlintIndex)))
           propertiesJson should matchJson(expectedJson)
 
           flint.refreshIndex(testFlintIndex)
@@ -393,6 +419,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       val propertiesJson = compact(render(getPropertiesJValue(testFlintIndex)))
       propertiesJson should matchJson(s"""
             | {
+            |   "indexState": "$indexStateCreating",
             |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
             |   "refreshInterval": 600,
             |   "sourceTables": ["$testTable"]
@@ -407,7 +434,8 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
   private def getPropertiesJValue(indexName: String): JValue = {
     // Convert to scala map because json4s converts java.util.Map into an empty JObject
     // https://github.com/json4s/json4s/issues/392
-    val properties = flintIndexMetadataService.getIndexMetadata(indexName).properties.asScala
+    val properties =
+      flintIndexMetadataService.getIndexMetadata(indexName).properties.asScala
     Extraction.decompose(properties)(DefaultFormats)
   }
 }
