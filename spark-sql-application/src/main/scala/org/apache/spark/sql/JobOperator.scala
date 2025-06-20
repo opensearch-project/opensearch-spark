@@ -95,6 +95,7 @@ case class JobOperator(
           case Right(_) => data
           case Left(err) =>
             throwableHandler.setError(err)
+            statement.fail()
             constructErrorDF(
               applicationId,
               jobId,
@@ -110,6 +111,7 @@ case class JobOperator(
     } catch {
       case e: TimeoutException =>
         throwableHandler.recordThrowable(s"Preparation for query execution timed out", e)
+        statement.timeout()
         dataToWrite = Some(
           constructErrorDF(
             applicationId,
@@ -125,6 +127,7 @@ case class JobOperator(
         incrementCounter(MetricConstants.QUERY_EXECUTION_FAILED_METRIC)
       case t: Throwable =>
         val error = processQueryException(t)
+        statement.fail()
         dataToWrite = Some(
           constructErrorDF(
             applicationId,
