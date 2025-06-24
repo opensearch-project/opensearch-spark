@@ -328,6 +328,9 @@ object FlintSparkConf {
   val TERMINATE_JVM = FlintConfig("spark.flint.terminateJVM")
     .doc("Indicates whether the JVM should be terminated after query execution")
     .createWithDefault("true")
+  val SHOULD_EXECUTE_NEXT_QUERY = FlintConfig("spark.flint.shouldExecuteNextQuery")
+    .doc("Indicates whether next query should be picked up or not")
+    .createWithDefault("true")
 }
 
 /**
