@@ -1,3 +1,6 @@
+# Copyright OpenSearch Contributors
+# SPDX-License-Identifier: Apache-2.0
+
 from flask import Flask, request, jsonify
 from pyspark.sql import SparkSession
 from pyspark.sql.types import *
