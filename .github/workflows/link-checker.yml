@@ -18,7 +18,7 @@ jobs:
         id: lychee
         uses: lycheeverse/lychee-action@master
         with:
-          args: --accept=200,403,429,999 --exclude-mail **/*.html **/*.md **/*.txt --exclude-file .lychee.excludes
+          args: --accept=200,403,429,999 **/*.html **/*.md **/*.txt --exclude-file .lychee.excludes
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
       - name: Fail if there were link errors
