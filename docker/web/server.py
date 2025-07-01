@@ -29,8 +29,13 @@ def handle_exception(e: Exception):
 @app.route("/query", methods=["POST"])
 def execute_query():
     sql = request.json["query"]
-    result = spark.sql(sql).toPandas().to_dict("records")
-    return jsonify({"status": "success", "result": result})
+    df = spark.sql(sql)
+
+    schema = df.schema
+    column_types = { field.name: field.dataType.simpleString() for field in schema.fields }
+
+    result = df.toPandas().to_dict("records")
+    return jsonify({"status": "success", "result": result, "schema": column_types })
 
 @app.route("/load", methods=["POST"])
 def load_data():

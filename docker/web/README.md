@@ -55,6 +55,10 @@ $ curl -X POST http://localhost:5000/query \
       "department": "HR"
     }
   ],
+  "schema": {
+    "avg_salary": "double",
+    "department": "string"
+  },
   "status": "success"
 }
 ```
@@ -78,6 +82,10 @@ $ curl -X POST http://localhost:5000/query \
       "department": "HR"
     }
   ],
+  "schema": {
+    "avg_salary": "double",
+    "department": "string"
+  },
   "status": "success"
 }
 ```
