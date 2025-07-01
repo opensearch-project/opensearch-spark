@@ -23,10 +23,17 @@ $ curl -X POST http://localhost:5000/load \
   -H "Content-Type: application/json" \
   -d '{
     "table": "employees",
+    "schema": {
+      "id": "integer",
+      "name": "string",
+      "department": "string",
+      "salary": "long",
+      "start_date": "date"
+    },
     "data": [
-      {"id": 1, "name": "Alice", "department": "IT", "salary": 80000},
-      {"id": 2, "name": "Bob", "department": "HR", "salary": 65000},
-      {"id": 3, "name": "Charlie", "department": "IT", "salary": 75000}
+      {"id": 1, "name": "Alice", "department": "IT", "salary": 80000, "start_date": "2023-01-15"},
+      {"id": 2, "name": "Bob", "department": "HR", "salary": 65000, "start_date": "2023-02-01"},
+      {"id": 3, "name": "Charlie", "department": "IT", "salary": 75000, "start_date": "2025-03-10"}
     ]
   }'
 {
