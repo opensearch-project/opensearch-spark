@@ -131,7 +131,6 @@ class WarmpoolTest extends SparkFunSuite with MockitoSugar with JobMatchers {
       streamingRunningCount,
       statementRunningCount)
 
-    // Should not throw or terminate - just complete normally
     noException should be thrownBy job.cleanUpResources()
   }
 
@@ -154,14 +153,12 @@ class WarmpoolTest extends SparkFunSuite with MockitoSugar with JobMatchers {
         streamingRunningCount,
         statementRunningCount))
 
-    // Mock cleanUpResources to avoid any side effects
     doNothing().when(job).cleanUpResources()
 
-    // FIX: Remove assertThrows, the exception might be handled internally
     try {
       job.queryLoop(mockStatementExecutionManager)
     } catch {
-      case _: Exception => // Ignore exception, we just want to verify cleanUpResources is called
+      case _: Exception =>
     }
 
     // Verify cleanUpResources was called
@@ -195,7 +192,6 @@ class WarmpoolTest extends SparkFunSuite with MockitoSugar with JobMatchers {
       job.queryLoop(mockStatementExecutionManager)
     }
 
-    // FIXED: Based on implementation, it's the cleanup exception that gets thrown, not original
     thrown.getMessage should include("Cleanup failed")
 
     // Verify cleanup was attempted
