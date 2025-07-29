@@ -41,7 +41,7 @@ public class DimensionUtils {
             DIMENSION_APPLICATION_ID, ignored -> getEnvironmentVariableDimension("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", DIMENSION_APPLICATION_ID),
             DIMENSION_APPLICATION_NAME, ignored -> getEnvironmentVariableDimension("SERVERLESS_EMR_APPLICATION_NAME", DIMENSION_APPLICATION_NAME),
             DIMENSION_DOMAIN_ID, ignored -> getEnvironmentVariableDimension("FLINT_CLUSTER_NAME", DIMENSION_DOMAIN_ID),
-            DIMENSION_SEGMENT, ignored -> constructDimensionFromSparkConf(DIMENSION_SEGMENT, "spark.dynamicAllocation.maxExecutors", UNKNOWN, value -> value + "e")
+            DIMENSION_SEGMENT, ignored -> constructDimensionFromSparkConf(DIMENSION_SEGMENT, "spark.dynamicAllocation.maxExecutors", UNKNOWN, value -> value + "e" + System.getenv().getOrDefault("COMPUTE_PLATFORM", ""))
     );
 
     /**
