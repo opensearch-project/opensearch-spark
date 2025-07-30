@@ -4,6 +4,7 @@
  */
 package org.apache.spark.sql
 
+import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.duration.Duration
@@ -32,6 +33,9 @@ case class WarmpoolJob(
     extends Logging
     with FlintJobExecutor {
 
+  private def getTerminateJVMSetting: Boolean = {
+    spark.conf.get(FlintSparkConf.TERMINATE_JVM.key, "true").toBoolean
+  }
   def start(): Unit = {
     val commandContext = CommandContext(
       applicationId,
@@ -85,8 +89,7 @@ case class WarmpoolJob(
 
             // The client sets this Spark configuration at runtime for each iteration
             // to control whether the JVM should be terminated after the query execution.
-            jobOperator.terminateJVM =
-              spark.conf.get(FlintSparkConf.TERMINATE_JVM.key, "true").toBoolean
+            jobOperator.terminateJVM = getTerminateJVMSetting
             jobOperator.start()
 
           case _ =>
@@ -97,7 +100,20 @@ case class WarmpoolJob(
       case t: Throwable =>
         // Record and rethrow in query loop
         throwableHandler.recordThrowable(s"Query loop execution failed.", t)
+        cleanUpResources()
         throw t
+    }
+  }
+  def cleanUpResources(): Unit = {
+    logInfo("Entered cleanUpResources")
+
+    if (getTerminateJVMSetting) {
+      logInfo("Exiting the JVM")
+      // Exit the JVM to prevent resource leaks and potential emr-s job hung.
+      // A zero status code is used for a graceful shutdown without indicating an error.
+      // If exiting with non-zero status, emr-s job will fail.
+      // This is a part of the fault tolerance mechanism to handle such scenarios gracefully
+      System.exit(0)
     }
   }
 }
