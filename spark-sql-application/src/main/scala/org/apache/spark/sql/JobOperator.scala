@@ -319,7 +319,8 @@ case class JobOperator(
    */
   private def getSegmentName(spark: SparkSession): String = {
     val maxExecutorsCount = spark.conf.get(FlintSparkConf.MAX_EXECUTORS_COUNT.key, "unknown")
-    String.format("%se", maxExecutorsCount)
+    val computePlatform = sys.env.getOrElse("COMPUTE_PLATFORM", "")
+    String.format("%se%s", maxExecutorsCount, computePlatform)
   }
 
   /**
