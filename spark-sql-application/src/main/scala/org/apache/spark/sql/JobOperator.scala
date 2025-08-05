@@ -82,6 +82,10 @@ case class JobOperator(
     val statementExecutionManager =
       instantiateStatementExecutionManager(commandContext, resultIndex, osClient)
 
+    if (!isWarmpoolEnabled) {
+      statementExecutionManager.updateStatement(statement)
+    }
+
     val readWriteBytesSparkListener = new MetricsSparkListener()
     sparkSession.sparkContext.addSparkListener(readWriteBytesSparkListener)
 
@@ -296,7 +300,7 @@ case class JobOperator(
     }
   }
 
-  private def instantiateStatementExecutionManager(
+  protected def instantiateStatementExecutionManager(
       commandContext: CommandContext,
       resultIndex: String,
       osClient: OSClient): StatementExecutionManager = {
@@ -319,7 +323,8 @@ case class JobOperator(
    */
   private def getSegmentName(spark: SparkSession): String = {
     val maxExecutorsCount = spark.conf.get(FlintSparkConf.MAX_EXECUTORS_COUNT.key, "unknown")
-    String.format("%se", maxExecutorsCount)
+    val computePlatform = sys.env.getOrElse("COMPUTE_PLATFORM", "")
+    String.format("%se%s", maxExecutorsCount, computePlatform)
   }
 
   /**
