@@ -233,7 +233,11 @@ publish_snapshots_and_update_metadata() {
   echo "::add-mask::$SONATYPE_PASSWORD"
   export SNAPSHOT_REPO_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/"
 
-  # Publish snapshots to maven
+  mkdir -p build/resources/publish/
+  cp build/publish/publish-snapshot.sh build/resources/publish/
+  chmod +x build/resources/publish/publish-snapshot.sh
+
+  # Continue with the original flow
   cd build/resources/publish/
   cp -a $HOME/.m2/repository/* ./
   ./publish-snapshot.sh ./
