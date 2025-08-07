@@ -233,6 +233,7 @@ publish_snapshots_and_update_metadata() {
   echo "::add-mask::$SONATYPE_PASSWORD"
   export SNAPSHOT_REPO_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/"
 
+  # Make a temp directory for publish-snapshot.sh
   mkdir -p build/resources/publish/
   cp build/publish/publish-snapshot.sh build/resources/publish/
   chmod +x build/resources/publish/publish-snapshot.sh
