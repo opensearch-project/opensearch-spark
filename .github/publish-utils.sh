@@ -234,6 +234,7 @@ publish_snapshots_and_update_metadata() {
   export SNAPSHOT_REPO_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/"
 
   # Publish snapshots to maven
+  cp build/publish/publish-snapshot.sh build/resources/publish/
   cd build/resources/publish/
   cp -a $HOME/.m2/repository/* ./
   ./publish-snapshot.sh ./
