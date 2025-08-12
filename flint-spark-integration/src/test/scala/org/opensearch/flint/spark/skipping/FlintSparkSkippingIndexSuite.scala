@@ -69,7 +69,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
     val df = spark.createDataFrame(Seq(("hello", 20))).toDF("name", "age")
     val indexDf = index.build(spark, Some(df))
-    indexDf.schema.fieldNames should contain only ("name", FILE_PATH_COLUMN, ID_COLUMN)
+    indexDf.schema.fieldNames should contain only ("name", FILE_PATH_COLUMN)
   }
 
   test("can build index on table name with special characters") {
@@ -82,7 +82,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
     val df = spark.createDataFrame(Seq(("hello", 20))).toDF("name", "age")
     val indexDf = index.build(spark, Some(df))
-    indexDf.schema.fieldNames should contain only ("name", FILE_PATH_COLUMN, ID_COLUMN)
+    indexDf.schema.fieldNames should contain only ("name", FILE_PATH_COLUMN)
   }
 
   // Test index build for different column type
