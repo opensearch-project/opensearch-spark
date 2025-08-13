@@ -25,8 +25,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v3
-        id: checkout
+      - uses: actions/checkout@v4
 
       # Extract version from build.sbt file
       - name: Extract version from build.sbt
@@ -46,7 +45,7 @@ jobs:
           echo "Using commit ID: ${COMMIT_ID}"
 
       - name: Set up JDK 11
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: 11
@@ -65,16 +64,20 @@ jobs:
           echo "Checking published artifacts:"
           find $HOME/.m2/repository/org/opensearch/ -name "*${{ steps.extract_version.outputs.version }}*" || echo "No artifacts found with the expected version"
 
-      - uses: actions/checkout@v3
+      - name: Load secret
+        uses: 1password/load-secrets-action@v2
+        with:
+          # Export loaded secrets as environment variables
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          SONATYPE_USERNAME: op://opensearch-infra-secrets/maven-central-portal-credentials/username
+          SONATYPE_PASSWORD: op://opensearch-infra-secrets/maven-central-portal-credentials/password
+
+      - uses: actions/checkout@v4
         with:
           repository: 'opensearch-project/opensearch-build'
           path: 'build'
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1.7.0
-        with:
-          role-to-assume: ${{ secrets.PUBLISH_SNAPSHOTS_ROLE }}
-          aws-region: us-east-1
 
       - name: Generate SHA and MD5 checksums
         run: |
