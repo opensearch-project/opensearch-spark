@@ -97,7 +97,7 @@ process_project_metadata() {
   METADATA_FILE="${TEMP_DIR}/maven-metadata.xml"
 
   # Download the current metadata from the repository
-  META_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/${project}/${current_version}/maven-metadata.xml"
+  META_URL="https://central.sonatype.com/repository/maven-snapshots/org/opensearch/${project}/${current_version}/maven-metadata.xml"
   echo "Downloading metadata from ${META_URL}"
 
   # Wait a bit to ensure the metadata file is available after publishing
@@ -226,12 +226,14 @@ publish_snapshots_and_update_metadata() {
   local current_version="$1"
   local commit_id="$2"
 
-  # Get credentials to upload files directly
-  export SONATYPE_USERNAME=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-username --query SecretString --output text)
-  export SONATYPE_PASSWORD=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-password --query SecretString --output text)
+  # Credentials are loaded from 1Password via environment variables
+  if [ -z "$SONATYPE_USERNAME" ] || [ -z "$SONATYPE_PASSWORD" ]; then
+    echo "Error: SONATYPE_USERNAME or SONATYPE_PASSWORD not set"
+    exit 1
+  fi
   echo "::add-mask::$SONATYPE_USERNAME"
   echo "::add-mask::$SONATYPE_PASSWORD"
-  export SNAPSHOT_REPO_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/"
+  export SNAPSHOT_REPO_URL="https://central.sonatype.com/repository/maven-snapshots/"
 
   mkdir -p build/resources/publish/
 
