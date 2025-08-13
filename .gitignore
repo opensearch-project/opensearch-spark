@@ -21,3 +21,6 @@ logs/
 *.zip
 
 gen/
+
+# Claude Code
+./claude
