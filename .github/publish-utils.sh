@@ -263,7 +263,7 @@ publish_snapshots_and_update_metadata() {
 
   # Continue with the original flow
   cd build/resources/publish/
-  cp -a "$HOME"/.m2/repository/* ./
+  cp -a $HOME/.m2/repository/* ./
   ./publish-snapshot.sh ./
 
   echo "Snapshot publishing completed. Now uploading commit ID metadata..."
