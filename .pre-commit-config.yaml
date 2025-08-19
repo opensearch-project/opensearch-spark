@@ -1,0 +1,10 @@
+repos:
+  -   repo: https://github.com/softwaremill/scala-pre-commit-hooks
+      rev: v0.5.1
+      hooks:
+        -   id: sbt-unused-imports
+            args: [--no-clean, --scope=test:compile, --client]
+            stages: [pre-commit, pre-push]
+        -   id: sbt-scalafmt-apply
+            args: [--no-clean, --client]
+            stages: [pre-commit, pre-push]
