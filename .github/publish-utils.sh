@@ -226,12 +226,11 @@ publish_snapshots_and_update_metadata() {
   local current_version="$1"
   local commit_id="$2"
 
-  # Get credentials to upload files directly
-  export SONATYPE_USERNAME=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-username --query SecretString --output text)
-  export SONATYPE_PASSWORD=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-password --query SecretString --output text)
+  # Credentials are already loaded from 1Password via environment variables
+  # SONATYPE_USERNAME and SONATYPE_PASSWORD are set by the GitHub Actions workflow
   echo "::add-mask::$SONATYPE_USERNAME"
   echo "::add-mask::$SONATYPE_PASSWORD"
-  export SNAPSHOT_REPO_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/"
+  export SNAPSHOT_REPO_URL="https://central.sonatype.com/repository/maven-snapshots/"
 
   # Make a temp directory for publish-snapshot.sh
   mkdir -p build/resources/publish/
