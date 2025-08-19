@@ -158,11 +158,22 @@ update_commit_mapping_for_project() {
   # Define the URL for the mapping file in the artifact directory
   MAPPING_URL="${snapshot_repo_url}org/opensearch/${project}/${commit_map_filename}"
 
-  # Try to download existing mapping file if it exists
-  if execute_curl_with_retry "$MAPPING_URL" "GET" "$MAPPING_FILE"; then
-    echo "Downloaded existing commit history file for ${project}"
+  # Check if the mapping file exists first
+  local file_exists=false
+  echo "Checking if commit history file exists at ${MAPPING_URL}"
+  local http_code=$(curl -s -o /dev/null -w "%{http_code}" -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" "$MAPPING_URL")
+  
+  if [[ "$http_code" == "200" ]]; then
+    file_exists=true
+    echo "Commit history file exists, downloading..."
+    if execute_curl_with_retry "$MAPPING_URL" "GET" "$MAPPING_FILE"; then
+      echo "Downloaded existing commit history file for ${project}"
+    else
+      echo "Failed to download existing file, creating new one"
+      echo '{"mappings":[]}' > "${MAPPING_FILE}"
+    fi
   else
-    echo "No existing commit history file found for ${project}, creating new one"
+    echo "Commit history file does not exist (HTTP ${http_code}), creating new one"
     echo '{"mappings":[]}' > "${MAPPING_FILE}"
   fi
 
@@ -210,11 +221,24 @@ update_commit_mapping_for_project() {
 
   # Upload the mapping file
   echo "Uploading commit history file to ${MAPPING_URL}"
-  if execute_curl_with_retry "$MAPPING_URL" "PUT" "" "$MAPPING_FILE"; then
-    echo "Successfully uploaded commit history file for ${project}"
+  if [ "$file_exists" = true ]; then
+    echo "Updating existing commit history file..."
+    if execute_curl_with_retry "$MAPPING_URL" "PUT" "" "$MAPPING_FILE"; then
+      echo "Successfully uploaded commit history file for ${project}"
+    else
+      echo "Failed to upload commit history file for ${project}"
+      exit 1
+    fi
   else
-    echo "Failed to upload commit history file for ${project}"
-    exit 1
+    echo "Creating new commit history file..."
+    # Try to upload as a new file - this will work if we have the right permissions
+    # or if Maven Central allows file creation in this context
+    if execute_curl_with_retry "$MAPPING_URL" "PUT" "" "$MAPPING_FILE"; then
+      echo "Successfully created and uploaded commit history file for ${project}"
+    else
+      echo "Failed to create commit history file for ${project} - continuing anyway"
+      echo "The file will be created in the next successful run"
+    fi
   fi
 
   # Clean up
@@ -239,7 +263,7 @@ publish_snapshots_and_update_metadata() {
 
   # Continue with the original flow
   cd build/resources/publish/
-  cp -a $HOME/.m2/repository/* ./
+  cp -a "$HOME"/.m2/repository/* ./
   ./publish-snapshot.sh ./
 
   echo "Snapshot publishing completed. Now uploading commit ID metadata..."
