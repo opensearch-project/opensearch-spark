@@ -211,7 +211,7 @@ update_commit_mapping_for_project() {
       echo '{"mappings":[]}' > "${MAPPING_FILE}"
     fi
   else
-    echo "No existing mapping file found, creating new one"
+    echo "Commit history file does not exist (HTTP ${http_code}), creating new one"
     echo '{"mappings":[]}' > "${MAPPING_FILE}"
   fi
 
@@ -257,19 +257,25 @@ update_commit_mapping_for_project() {
   echo "Updated commit history file content for ${project}:"
   cat "${MAPPING_FILE}"
 
-  # Upload the mapping file - try POST first, then fall back to PUT
-  echo "Uploading mapping file to ${MAPPING_URL}"
-  echo "Trying POST request first..."
-  if execute_curl_with_retry "$MAPPING_URL" "POST" "" "$MAPPING_FILE"; then
-    echo "Successfully uploaded commit history file for ${project} via POST"
-  else
-    echo "POST failed, trying PUT request..."
+  # Upload the mapping file
+  echo "Uploading commit history file to ${MAPPING_URL}"
+  if [ "$file_exists" = true ]; then
+    echo "Updating existing commit history file..."
     if execute_curl_with_retry "$MAPPING_URL" "PUT" "" "$MAPPING_FILE"; then
-      echo "Successfully uploaded commit history file for ${project} via PUT"
+      echo "Successfully uploaded commit history file for ${project}"
     else
-      echo "Both POST and PUT failed for ${project}"
-      echo "This may be because the path doesn't exist in Maven Central's repository structure"
-      echo "Continuing with workflow..."
+      echo "Failed to upload commit history file for ${project}"
+      exit 1
+    fi
+  else
+    echo "Creating new commit history file..."
+    # Try to upload as a new file - this will work if we have the right permissions
+    # or if Maven Central allows file creation in this context
+    if execute_curl_with_retry "$MAPPING_URL" "POST" "" "$MAPPING_FILE"; then
+      echo "Successfully created and uploaded commit history file for ${project}"
+    else
+      echo "Failed to create commit history file for ${project} - continuing anyway"
+      echo "The file will be created in the next successful run"
     fi
   fi
 
