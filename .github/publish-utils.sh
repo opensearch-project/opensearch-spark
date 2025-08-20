@@ -288,6 +288,9 @@ publish_snapshots_and_update_metadata() {
   local current_version="$1"
   local commit_id="$2"
 
+  # Flag to control commit history file creation (disabled due to Maven Central restrictions)
+  local ENABLE_COMMIT_HISTORY=false
+
   # Credentials are already loaded from 1Password via environment variables
   # SONATYPE_USERNAME and SONATYPE_PASSWORD are set by the GitHub Actions workflow
   echo "::add-mask::$SONATYPE_USERNAME"
@@ -301,52 +304,56 @@ publish_snapshots_and_update_metadata() {
 
   # Continue with the original flow
   cd build/resources/publish/
-  cp -a $HOME/.m2/repository/* ./
+  cp -a "$HOME"/.m2/repository/* ./
   
-  # Pre-create commit history files in the artifact structure for initial upload
-  # These files need to be at the project root level, not in version directories
-  echo "Looking for project directories to create commit history files..."
-  ls -la org/opensearch/ || echo "org/opensearch directory not found"
-  
-  for PROJECT in "opensearch-spark-standalone_2.12" "opensearch-spark-ppl_2.12" "opensearch-spark-sql-application_2.12"; do
-    PROJECT_DIR="org/opensearch/${PROJECT}"
-    echo "Checking for project directory: ${PROJECT_DIR}"
+  if [ "$ENABLE_COMMIT_HISTORY" = true ]; then
+    # Pre-create commit history files in the artifact structure for initial upload
+    # These files need to be at the project root level, not in version directories
+    echo "Looking for project directories to create commit history files..."
+    ls -la org/opensearch/ || echo "org/opensearch directory not found"
     
-    if [ -d "${PROJECT_DIR}" ]; then
-      echo "Found project directory: ${PROJECT_DIR}"
-      ls -la "${PROJECT_DIR}"
+    for PROJECT in "opensearch-spark-standalone_2.12" "opensearch-spark-ppl_2.12" "opensearch-spark-sql-application_2.12"; do
+      PROJECT_DIR="org/opensearch/${PROJECT}"
+      echo "Checking for project directory: ${PROJECT_DIR}"
       
-      # Find the version directory that already exists and will be uploaded
-      VERSION_DIR=$(find "${PROJECT_DIR}" -type d -name "*SNAPSHOT*" | head -1)
-      if [ -n "${VERSION_DIR}" ]; then
-        COMMIT_HISTORY_FILE="${VERSION_DIR}/commit-history-${PROJECT}.json"
-        if [ ! -f "${COMMIT_HISTORY_FILE}" ]; then
-          echo "Creating initial commit history file for ${PROJECT} in existing version directory: ${VERSION_DIR}"
-          echo '{"mappings":[],"initialized":"'"$(date -u +"%Y-%m-%dT%H:%M:%SZ")"'","project":"'"${PROJECT}"'"}' > "${COMMIT_HISTORY_FILE}"
-          echo "Created: ${COMMIT_HISTORY_FILE}"
-          
-          # Create checksums for Maven compliance  
-          sha1sum "${COMMIT_HISTORY_FILE}" | cut -d" " -f1 > "${COMMIT_HISTORY_FILE}.sha1"
-          md5sum "${COMMIT_HISTORY_FILE}" | cut -d" " -f1 > "${COMMIT_HISTORY_FILE}.md5"
-          echo "Created checksums for ${COMMIT_HISTORY_FILE}"
-          
-          # Verify the files were created
-          ls -la "${COMMIT_HISTORY_FILE}"*
+      if [ -d "${PROJECT_DIR}" ]; then
+        echo "Found project directory: ${PROJECT_DIR}"
+        ls -la "${PROJECT_DIR}"
+        
+        # Find the version directory that already exists and will be uploaded
+        VERSION_DIR=$(find "${PROJECT_DIR}" -type d -name "*SNAPSHOT*" | head -1)
+        if [ -n "${VERSION_DIR}" ]; then
+          COMMIT_HISTORY_FILE="${VERSION_DIR}/commit-history-${PROJECT}.json"
+          if [ ! -f "${COMMIT_HISTORY_FILE}" ]; then
+            echo "Creating initial commit history file for ${PROJECT} in existing version directory: ${VERSION_DIR}"
+            echo '{"mappings":[],"initialized":"'"$(date -u +"%Y-%m-%dT%H:%M:%SZ")"'","project":"'"${PROJECT}"'"}' > "${COMMIT_HISTORY_FILE}"
+            echo "Created: ${COMMIT_HISTORY_FILE}"
+            
+            # Create checksums for Maven compliance  
+            sha1sum "${COMMIT_HISTORY_FILE}" | cut -d" " -f1 > "${COMMIT_HISTORY_FILE}.sha1"
+            md5sum "${COMMIT_HISTORY_FILE}" | cut -d" " -f1 > "${COMMIT_HISTORY_FILE}.md5"
+            echo "Created checksums for ${COMMIT_HISTORY_FILE}"
+            
+            # Verify the files were created
+            ls -la "${COMMIT_HISTORY_FILE}"*
+          else
+            echo "Commit history file already exists: ${COMMIT_HISTORY_FILE}"
+          fi
         else
-          echo "Commit history file already exists: ${COMMIT_HISTORY_FILE}"
+          echo "No SNAPSHOT version directory found for ${PROJECT}"
         fi
       else
-        echo "No SNAPSHOT version directory found for ${PROJECT}"
+        echo "Project directory not found: ${PROJECT_DIR}"
+        echo "Available directories in org/opensearch/:"
+        ls -la org/opensearch/ 2>/dev/null || echo "No org/opensearch directory"
       fi
-    else
-      echo "Project directory not found: ${PROJECT_DIR}"
-      echo "Available directories in org/opensearch/:"
-      ls -la org/opensearch/ 2>/dev/null || echo "No org/opensearch directory"
-    fi
-  done
-  
-  echo "Commit history file creation complete. Contents of org/opensearch/:"
-  find org/opensearch/ -name "*.json" 2>/dev/null || echo "No JSON files found"
+    done
+    
+    echo "Commit history file creation complete. Contents of org/opensearch/:"
+    find org/opensearch/ -name "*.json" 2>/dev/null || echo "No JSON files found"
+  else
+    echo "Skipping commit history file creation (disabled)"
+  fi
  
   ./publish-snapshot.sh ./
 
@@ -370,9 +377,12 @@ publish_snapshots_and_update_metadata() {
   done
 
   # Create/update commit ID to version mapping for each project
-  for PROJECT in "${PROJECTS[@]}"; do
-    update_commit_mapping_for_project "$PROJECT" "$current_version" "$commit_id" "$SNAPSHOT_REPO_URL"
-  done
-
-  echo "All commit mapping files updated successfully"
+  if [ "$ENABLE_COMMIT_HISTORY" = true ]; then
+    for PROJECT in "${PROJECTS[@]}"; do
+      update_commit_mapping_for_project "$PROJECT" "$current_version" "$commit_id" "$SNAPSHOT_REPO_URL"
+    done
+    echo "All commit mapping files updated successfully"
+  else
+    echo "Skipping commit mapping file updates (disabled)"
+  fi
 }
