@@ -233,7 +233,7 @@ update_commit_mapping_for_project() {
     echo "Creating new commit history file..."
     # Try to upload as a new file - this will work if we have the right permissions
     # or if Maven Central allows file creation in this context
-    if execute_curl_with_retry "$MAPPING_URL" "PUT" "" "$MAPPING_FILE"; then
+    if execute_curl_with_retry "$MAPPING_URL" "POST" "" "$MAPPING_FILE"; then
       echo "Successfully created and uploaded commit history file for ${project}"
     else
       echo "Failed to create commit history file for ${project} - continuing anyway"
