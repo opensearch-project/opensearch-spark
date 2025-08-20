@@ -342,7 +342,7 @@ publish_snapshots_and_update_metadata() {
       echo "Project directory not found: ${PROJECT_DIR}"
       echo "Available directories in org/opensearch/:"
       ls -la org/opensearch/ 2>/dev/null || echo "No org/opensearch directory"
-    fixx
+    fi
   done
   
   echo "Commit history file creation complete. Contents of org/opensearch/:"
