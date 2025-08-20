@@ -196,9 +196,20 @@ update_commit_mapping_for_project() {
     echo "Using fallback URL with current version: ${MAPPING_URL}"
   fi
 
-  # Try to download existing mapping file if it exists
-  if execute_curl_with_retry "$MAPPING_URL" "GET" "$MAPPING_FILE"; then
-    echo "Downloaded existing commit history file for ${project}"
+  # Check if the mapping file exists first
+  local file_exists=false
+  echo "Checking if commit history file exists at ${MAPPING_URL}"
+  local http_code=$(curl -s -o /dev/null -w "%{http_code}" -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" "$MAPPING_URL")
+  
+  if [[ "$http_code" == "200" ]]; then
+    file_exists=true
+    echo "Commit history file exists, downloading..."
+    if execute_curl_with_retry "$MAPPING_URL" "GET" "$MAPPING_FILE"; then
+      echo "Downloaded existing commit history file for ${project}"
+    else
+      echo "Failed to download existing file, creating new one"
+      echo '{"mappings":[]}' > "${MAPPING_FILE}"
+    fi
   else
     echo "No existing mapping file found, creating new one"
     echo '{"mappings":[]}' > "${MAPPING_FILE}"
@@ -330,7 +341,7 @@ publish_snapshots_and_update_metadata() {
   
   echo "Commit history file creation complete. Contents of org/opensearch/:"
   find org/opensearch/ -name "*.json" 2>/dev/null || echo "No JSON files found"
-  
+ 
   ./publish-snapshot.sh ./
 
   echo "Snapshot publishing completed. Now uploading commit ID metadata..."
