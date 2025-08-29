@@ -113,7 +113,19 @@ process_project_metadata() {
       local artifact_version="${ACTUAL_VERSIONS[$project]}"
       local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
       
-      # Check if commitHistory section already exists
+      # First, add commit ID to versioning section
+      cp "${METADATA_FILE}" "${METADATA_FILE}.bak"
+      
+      awk -v commit="${commit_id}" '
+        /<versioning>/ {
+          print $0
+          print "  <commitId>" commit "</commitId>"
+          next
+        }
+        {print}
+      ' "${METADATA_FILE}.bak" > "${METADATA_FILE}"
+      
+      # Then add/update commitHistory section for detailed mapping
       if grep -q "<commitHistory>" "$METADATA_FILE"; then
         echo "Updating existing commit history in metadata"
         
