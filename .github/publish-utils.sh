@@ -84,7 +84,7 @@ extract_jar_version() {
   fi
 }
 
-# Function to process metadata for a single project
+# Function to process metadata for a single project with commit history
 process_project_metadata() {
   local project="$1"
   local current_version="$2"
@@ -92,9 +92,10 @@ process_project_metadata() {
 
   echo "Processing metadata for ${project}"
 
-  # Create a temporary metadata file with commit ID
+  # Create a temporary metadata file
   TEMP_DIR=$(mktemp -d)
   METADATA_FILE="${TEMP_DIR}/maven-metadata.xml"
+  UPDATED_METADATA="${TEMP_DIR}/maven-metadata-updated.xml"
 
   # Download the current metadata from the repository
   META_URL="https://central.sonatype.com/repository/maven-snapshots/org/opensearch/${project}/${current_version}/maven-metadata.xml"
@@ -109,24 +110,54 @@ process_project_metadata() {
 
     # Extract JAR version using the abstracted function
     if extract_jar_version "$project" "$METADATA_FILE"; then
-      # Modify the metadata to include commit ID
-      cp "${METADATA_FILE}" "${METADATA_FILE}.bak"
-
-      awk -v commit="${commit_id}" '
-        /<versioning>/ {
-          print $0
-          print "  <commitId>" commit "</commitId>"
-          next
-        }
-        {print}
-      ' "${METADATA_FILE}.bak" > "${METADATA_FILE}"
+      local artifact_version="${ACTUAL_VERSIONS[$project]}"
+      local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+      
+      # Check if commitHistory section already exists
+      if grep -q "<commitHistory>" "$METADATA_FILE"; then
+        echo "Updating existing commit history in metadata"
+        
+        # Create a new mapping entry
+        local new_mapping="    <mapping>\n      <commitId>${commit_id}</commitId>\n      <timestamp>${timestamp}</timestamp>\n      <baseVersion>${current_version}</baseVersion>\n      <artifactVersion>${artifact_version}</artifactVersion>\n    </mapping>"
+        
+        # Insert new mapping at the beginning of commitHistory section
+        awk -v new_mapping="${new_mapping}" '
+          /<commitHistory>/ {
+            print $0
+            print new_mapping
+            next
+          }
+          {print}
+        ' "${METADATA_FILE}" > "${UPDATED_METADATA}"
+      else
+        echo "Adding new commit history section to metadata"
+        
+        # Add commitHistory section before closing </metadata> tag
+        awk -v commit="${commit_id}" -v ts="${timestamp}" -v base_ver="${current_version}" -v artifact_ver="${artifact_version}" '
+          /<\/metadata>/ {
+            print "  <commitHistory>"
+            print "    <mapping>"
+            print "      <commitId>" commit "</commitId>"
+            print "      <timestamp>" ts "</timestamp>"
+            print "      <baseVersion>" base_ver "</baseVersion>"
+            print "      <artifactVersion>" artifact_ver "</artifactVersion>"
+            print "    </mapping>"
+            print "  </commitHistory>"
+            print $0
+            next
+          }
+          {print}
+        ' "${METADATA_FILE}" > "${UPDATED_METADATA}"
+      fi
 
       echo "Modified metadata content:"
-      cat "${METADATA_FILE}"
+      cat "${UPDATED_METADATA}"
 
       # Upload the modified metadata back
       echo "Uploading modified metadata to ${META_URL}"
-      if ! execute_curl_with_retry "$META_URL" "PUT" "" "$METADATA_FILE"; then
+      if execute_curl_with_retry "$META_URL" "PUT" "" "$UPDATED_METADATA"; then
+        echo "Successfully updated metadata with commit history for ${project}"
+      else
         echo "Failed to upload modified metadata for ${project}"
       fi
     else
@@ -140,85 +171,36 @@ process_project_metadata() {
   rm -rf "${TEMP_DIR}"
 }
 
-# Function to create/update commit ID to version mapping for a specific project
-update_commit_mapping_for_project() {
+# Function to retrieve commit history from maven-metadata.xml
+retrieve_commit_history() {
   local project="$1"
   local current_version="$2"
-  local commit_id="$3"
-  local snapshot_repo_url="$4"
-
-  echo "Creating/updating commit ID to version mapping for ${project}..."
-
-  MAPPING_DIR=$(mktemp -d)
-
-  # Generate artifact-specific commit history filename
-  local commit_map_filename="commit-history-${project}.json"
-  MAPPING_FILE="${MAPPING_DIR}/${commit_map_filename}"
-
-  # Define the URL for the mapping file in the artifact directory
-  MAPPING_URL="${snapshot_repo_url}org/opensearch/${project}/${commit_map_filename}"
-
-  # Try to download existing mapping file if it exists
-  if execute_curl_with_retry "$MAPPING_URL" "GET" "$MAPPING_FILE"; then
-    echo "Downloaded existing commit history file for ${project}"
+  
+  echo "Retrieving commit history for ${project}..."
+  
+  TEMP_DIR=$(mktemp -d)
+  METADATA_FILE="${TEMP_DIR}/maven-metadata.xml"
+  
+  # Download the metadata
+  META_URL="https://central.sonatype.com/repository/maven-snapshots/org/opensearch/${project}/${current_version}/maven-metadata.xml"
+  
+  if execute_curl_with_retry "$META_URL" "GET" "$METADATA_FILE"; then
+    if grep -q "<commitHistory>" "$METADATA_FILE"; then
+      echo "Commit history found in metadata:"
+      # Extract commit history section
+      xmlstarlet sel -t -m "//commitHistory/mapping" \
+        -v "concat('Commit: ', commitId, ' | Timestamp: ', timestamp, ' | Base: ', baseVersion, ' | Artifact: ', artifactVersion)" \
+        -n "$METADATA_FILE" 2>/dev/null || \
+      awk '/<commitHistory>/,/<\/commitHistory>/' "$METADATA_FILE"
+    else
+      echo "No commit history found in metadata for ${project}"
+    fi
   else
-    echo "No existing commit history file found for ${project}, creating new one"
-    echo '{"mappings":[]}' > "${MAPPING_FILE}"
+    echo "Failed to retrieve metadata for ${project}"
   fi
-
-  # Get the actual artifact version for this project
-  local artifact_version="${ACTUAL_VERSIONS[$project]}"
-  if [ -z "$artifact_version" ]; then
-    echo "Warning: No artifact version found for ${project}, using base version"
-    artifact_version="$current_version"
-  fi
-
-  # Add new mapping entry
-  TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-  # Use temporary file for JSON manipulation
-  TEMP_JSON="${MAPPING_DIR}/temp.json"
-
-  # Use jq to add the new mapping or update existing one
-  cat "${MAPPING_FILE}" | jq --arg commit "$commit_id" \
-                              --arg timestamp "$TIMESTAMP" \
-                              --arg project "$project" \
-                              --arg base_version "$current_version" \
-                              --arg artifact_version "$artifact_version" '
-  # Look for an existing entry with this commit ID
-  if (.mappings | map(select(.commit_id == $commit)) | length) == 0 then
-    # No entry exists, add a new one
-    .mappings += [{"commit_id": $commit, "timestamp": $timestamp, "artifacts": {($project): {"base_version": $base_version, "artifact_version": $artifact_version}}}]
-  else
-    # Update the existing entry
-    .mappings = [.mappings[] | if .commit_id == $commit then
-      # Update timestamp and merge artifacts
-      . + {"timestamp": $timestamp, "artifacts": (.artifacts + {($project): {"base_version": $base_version, "artifact_version": $artifact_version}})}
-    else . end]
-  end
-  ' > "${TEMP_JSON}"
-
-  mv "${TEMP_JSON}" "${MAPPING_FILE}"
-
-  # Sort mappings by timestamp (newest first) for easier lookup
-  cat "${MAPPING_FILE}" | jq '.mappings |= sort_by(.timestamp) | .mappings |= reverse' > "${TEMP_JSON}"
-  mv "${TEMP_JSON}" "${MAPPING_FILE}"
-
-  # Print the updated mapping for debugging
-  echo "Updated commit history file content for ${project}:"
-  cat "${MAPPING_FILE}"
-
-  # Upload the mapping file
-  echo "Uploading commit history file to ${MAPPING_URL}"
-  if execute_curl_with_retry "$MAPPING_URL" "PUT" "" "$MAPPING_FILE"; then
-    echo "Successfully uploaded commit history file for ${project}"
-  else
-    echo "Failed to upload commit history file for ${project}"
-    exit 1
-  fi
-
+  
   # Clean up
-  rm -rf "${MAPPING_DIR}"
+  rm -rf "${TEMP_DIR}"
 }
 
 # Main function to handle snapshot publishing and metadata updates
@@ -265,10 +247,11 @@ publish_snapshots_and_update_metadata() {
     echo "$project: ${ACTUAL_VERSIONS[$project]}"
   done
 
-  # Create/update commit ID to version mapping for each project
+  # Optionally retrieve and display commit history for verification
+  echo "Verifying commit history in metadata files:"
   for PROJECT in "${PROJECTS[@]}"; do
-    update_commit_mapping_for_project "$PROJECT" "$current_version" "$commit_id" "$SNAPSHOT_REPO_URL"
+    retrieve_commit_history "$PROJECT" "$current_version"
   done
 
-  echo "All commit mapping files updated successfully"
+  echo "All metadata files updated with commit history successfully"
 }

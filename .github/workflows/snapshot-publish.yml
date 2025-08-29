@@ -87,7 +87,7 @@ jobs:
           for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
 
       - name: Install required tools
-        run: sudo apt-get update && sudo apt-get install -y xmlstarlet jq
+        run: sudo apt-get update && sudo apt-get install -y xmlstarlet
 
       - name: Publish snapshots and update metadata
         run: |
