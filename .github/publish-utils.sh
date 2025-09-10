@@ -29,14 +29,30 @@ execute_curl_with_retry() {
       "PUT")
         curl_cmd="$curl_cmd --upload-file \"$upload_file\" \"$url\""
         ;;
+      "POST")
+        curl_cmd="$curl_cmd --data-binary @\"$upload_file\" \"$url\""
+        ;;
       "HEAD")
         curl_cmd="$curl_cmd -I \"$url\""
         ;;
     esac
 
     echo "Executing: $curl_cmd"
-    if eval $curl_cmd; then
-      local http_code=$(curl -s -o /dev/null -w "%{http_code}" -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" "$url")
+    # For PUT/POST requests, modify the command to capture HTTP code
+    if [ "$method" = "PUT" ]; then
+      local put_cmd="curl -s -u \"${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}\" --upload-file \"$upload_file\" -w '%{http_code}' -o /dev/null \"$url\""
+      echo "PUT command: $put_cmd"
+      local http_code=$(eval "$put_cmd")
+      if [[ "$http_code" =~ ^[23] ]]; then
+        echo "Request successful (HTTP $http_code)"
+        return 0
+      else
+        echo "Request failed with HTTP code: $http_code"
+      fi
+    elif [ "$method" = "POST" ]; then
+      local post_cmd="curl -s -u \"${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}\" --data-binary @\"$upload_file\" -w '%{http_code}' -o /dev/null \"$url\""
+      echo "POST command: $post_cmd"
+      local http_code=$(eval "$post_cmd")
       if [[ "$http_code" =~ ^[23] ]]; then
         echo "Request successful (HTTP $http_code)"
         return 0
@@ -44,7 +60,18 @@ execute_curl_with_retry() {
         echo "Request failed with HTTP code: $http_code"
       fi
     else
-      echo "Curl command failed"
+      # For GET/HEAD requests, use the original logic
+      if eval "$curl_cmd"; then
+        local http_code=$(curl -s -o /dev/null -w "%{http_code}" -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" "$url")
+        if [[ "$http_code" =~ ^[23] ]]; then
+          echo "Request successful (HTTP $http_code)"
+          return 0
+        else
+          echo "Request failed with HTTP code: $http_code"
+        fi
+      else
+        echo "Curl command failed"
+      fi
     fi
 
     retry_count=$((retry_count + 1))
@@ -155,14 +182,36 @@ update_commit_mapping_for_project() {
   local commit_map_filename="commit-history-${project}.json"
   MAPPING_FILE="${MAPPING_DIR}/${commit_map_filename}"
 
-  # Define the URL for the mapping file in the artifact directory
-  MAPPING_URL="${snapshot_repo_url}org/opensearch/${project}/${commit_map_filename}"
-
-  # Try to download existing mapping file if it exists
-  if execute_curl_with_retry "$MAPPING_URL" "GET" "$MAPPING_FILE"; then
-    echo "Downloaded existing commit history file for ${project}"
+  # Define the URL for the mapping file in the version directory where it was deployed
+  # First try to find the actual version that was deployed
+  local deployed_version="${ACTUAL_VERSIONS[$project]}"
+  if [ -n "$deployed_version" ]; then
+    # Extract just the version part (e.g., "1.0.0-SNAPSHOT" from "1.0.0-20250819.224915-2")
+    local base_version=$(echo "$deployed_version" | sed 's/-[0-9]*\.[0-9]*-[0-9]*$//')
+    MAPPING_URL="${snapshot_repo_url}org/opensearch/${project}/${base_version}/${commit_map_filename}"
+    echo "Using version-specific URL: ${MAPPING_URL}"
   else
-    echo "No existing commit history file found for ${project}, creating new one"
+    # Fallback to current version
+    MAPPING_URL="${snapshot_repo_url}org/opensearch/${project}/${current_version}/${commit_map_filename}"
+    echo "Using fallback URL with current version: ${MAPPING_URL}"
+  fi
+
+  # Check if the mapping file exists first
+  local file_exists=false
+  echo "Checking if commit history file exists at ${MAPPING_URL}"
+  local http_code=$(curl -s -o /dev/null -w "%{http_code}" -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" "$MAPPING_URL")
+  
+  if [[ "$http_code" == "200" ]]; then
+    file_exists=true
+    echo "Commit history file exists, downloading..."
+    if execute_curl_with_retry "$MAPPING_URL" "GET" "$MAPPING_FILE"; then
+      echo "Downloaded existing commit history file for ${project}"
+    else
+      echo "Failed to download existing file, creating new one"
+      echo '{"mappings":[]}' > "${MAPPING_FILE}"
+    fi
+  else
+    echo "Commit history file does not exist (HTTP ${http_code}), creating new one"
     echo '{"mappings":[]}' > "${MAPPING_FILE}"
   fi
 
@@ -210,11 +259,24 @@ update_commit_mapping_for_project() {
 
   # Upload the mapping file
   echo "Uploading commit history file to ${MAPPING_URL}"
-  if execute_curl_with_retry "$MAPPING_URL" "PUT" "" "$MAPPING_FILE"; then
-    echo "Successfully uploaded commit history file for ${project}"
+  if [ "$file_exists" = true ]; then
+    echo "Updating existing commit history file..."
+    if execute_curl_with_retry "$MAPPING_URL" "PUT" "" "$MAPPING_FILE"; then
+      echo "Successfully uploaded commit history file for ${project}"
+    else
+      echo "Failed to upload commit history file for ${project}"
+      exit 1
+    fi
   else
-    echo "Failed to upload commit history file for ${project}"
-    exit 1
+    echo "Creating new commit history file..."
+    # Try to upload as a new file - this will work if we have the right permissions
+    # or if Maven Central allows file creation in this context
+    if execute_curl_with_retry "$MAPPING_URL" "POST" "" "$MAPPING_FILE"; then
+      echo "Successfully created and uploaded commit history file for ${project}"
+    else
+      echo "Failed to create commit history file for ${project} - continuing anyway"
+      echo "The file will be created in the next successful run"
+    fi
   fi
 
   # Clean up
@@ -226,12 +288,14 @@ publish_snapshots_and_update_metadata() {
   local current_version="$1"
   local commit_id="$2"
 
-  # Get credentials to upload files directly
-  export SONATYPE_USERNAME=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-username --query SecretString --output text)
-  export SONATYPE_PASSWORD=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-password --query SecretString --output text)
+  # Flag to control commit history file creation (disabled due to Maven Central restrictions)
+  local ENABLE_COMMIT_HISTORY=false
+
+  # Credentials are already loaded from 1Password via environment variables
+  # SONATYPE_USERNAME and SONATYPE_PASSWORD are set by the GitHub Actions workflow
   echo "::add-mask::$SONATYPE_USERNAME"
   echo "::add-mask::$SONATYPE_PASSWORD"
-  export SNAPSHOT_REPO_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/"
+  export SNAPSHOT_REPO_URL="https://central.sonatype.com/repository/maven-snapshots/"
 
   # Make a temp directory for publish-snapshot.sh
   mkdir -p build/resources/publish/
@@ -240,7 +304,57 @@ publish_snapshots_and_update_metadata() {
 
   # Continue with the original flow
   cd build/resources/publish/
-  cp -a $HOME/.m2/repository/* ./
+  cp -a "$HOME"/.m2/repository/* ./
+  
+  if [ "$ENABLE_COMMIT_HISTORY" = true ]; then
+    # Pre-create commit history files in the artifact structure for initial upload
+    # These files need to be at the project root level, not in version directories
+    echo "Looking for project directories to create commit history files..."
+    ls -la org/opensearch/ || echo "org/opensearch directory not found"
+    
+    for PROJECT in "opensearch-spark-standalone_2.12" "opensearch-spark-ppl_2.12" "opensearch-spark-sql-application_2.12"; do
+      PROJECT_DIR="org/opensearch/${PROJECT}"
+      echo "Checking for project directory: ${PROJECT_DIR}"
+      
+      if [ -d "${PROJECT_DIR}" ]; then
+        echo "Found project directory: ${PROJECT_DIR}"
+        ls -la "${PROJECT_DIR}"
+        
+        # Find the version directory that already exists and will be uploaded
+        VERSION_DIR=$(find "${PROJECT_DIR}" -type d -name "*SNAPSHOT*" | head -1)
+        if [ -n "${VERSION_DIR}" ]; then
+          COMMIT_HISTORY_FILE="${VERSION_DIR}/commit-history-${PROJECT}.json"
+          if [ ! -f "${COMMIT_HISTORY_FILE}" ]; then
+            echo "Creating initial commit history file for ${PROJECT} in existing version directory: ${VERSION_DIR}"
+            echo '{"mappings":[],"initialized":"'"$(date -u +"%Y-%m-%dT%H:%M:%SZ")"'","project":"'"${PROJECT}"'"}' > "${COMMIT_HISTORY_FILE}"
+            echo "Created: ${COMMIT_HISTORY_FILE}"
+            
+            # Create checksums for Maven compliance  
+            sha1sum "${COMMIT_HISTORY_FILE}" | cut -d" " -f1 > "${COMMIT_HISTORY_FILE}.sha1"
+            md5sum "${COMMIT_HISTORY_FILE}" | cut -d" " -f1 > "${COMMIT_HISTORY_FILE}.md5"
+            echo "Created checksums for ${COMMIT_HISTORY_FILE}"
+            
+            # Verify the files were created
+            ls -la "${COMMIT_HISTORY_FILE}"*
+          else
+            echo "Commit history file already exists: ${COMMIT_HISTORY_FILE}"
+          fi
+        else
+          echo "No SNAPSHOT version directory found for ${PROJECT}"
+        fi
+      else
+        echo "Project directory not found: ${PROJECT_DIR}"
+        echo "Available directories in org/opensearch/:"
+        ls -la org/opensearch/ 2>/dev/null || echo "No org/opensearch directory"
+      fi
+    done
+    
+    echo "Commit history file creation complete. Contents of org/opensearch/:"
+    find org/opensearch/ -name "*.json" 2>/dev/null || echo "No JSON files found"
+  else
+    echo "Skipping commit history file creation (disabled)"
+  fi
+ 
   ./publish-snapshot.sh ./
 
   echo "Snapshot publishing completed. Now uploading commit ID metadata..."
@@ -263,9 +377,12 @@ publish_snapshots_and_update_metadata() {
   done
 
   # Create/update commit ID to version mapping for each project
-  for PROJECT in "${PROJECTS[@]}"; do
-    update_commit_mapping_for_project "$PROJECT" "$current_version" "$commit_id" "$SNAPSHOT_REPO_URL"
-  done
-
-  echo "All commit mapping files updated successfully"
+  if [ "$ENABLE_COMMIT_HISTORY" = true ]; then
+    for PROJECT in "${PROJECTS[@]}"; do
+      update_commit_mapping_for_project "$PROJECT" "$current_version" "$commit_id" "$SNAPSHOT_REPO_URL"
+    done
+    echo "All commit mapping files updated successfully"
+  else
+    echo "Skipping commit mapping file updates (disabled)"
+  fi
 }
