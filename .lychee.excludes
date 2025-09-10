@@ -1,4 +1,4 @@
-https://aws.oss.sonatype.*
+https://central.sonatype.com/*
 http://localhost.*
 https://localhost.*
 https://odfe-node1:9200/.*

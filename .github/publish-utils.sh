@@ -97,7 +97,7 @@ process_project_metadata() {
   METADATA_FILE="${TEMP_DIR}/maven-metadata.xml"
 
   # Download the current metadata from the repository
-  META_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/${project}/${current_version}/maven-metadata.xml"
+  META_URL="https://central.sonatype.com/repository/maven-snapshots/org/opensearch/${project}/${current_version}/maven-metadata.xml"
   echo "Downloading metadata from ${META_URL}"
 
   # Wait a bit to ensure the metadata file is available after publishing
