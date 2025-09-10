@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - 0.*
+      - fix-snapshot-upload
 
 # Concurrency control to prevent race conditions in commit mapping
 concurrency:
