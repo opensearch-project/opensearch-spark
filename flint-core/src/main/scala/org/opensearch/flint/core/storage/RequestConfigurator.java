@@ -11,6 +11,7 @@ import org.opensearch.flint.core.FlintOptions;
 
 /**
  * allows override default socket timeout in RestClientBuilder.DEFAULT_SOCKET_TIMEOUT_MILLIS
+ * allows override of default connection timeout in RestClientBuilder.DEFAULT_CONNECT_TIMEOUT_MILLIS
  */
 public class RequestConfigurator implements RestClientBuilder.RequestConfigCallback {
 
@@ -22,6 +23,8 @@ public class RequestConfigurator implements RestClientBuilder.RequestConfigCallb
 
     @Override
     public RequestConfig.Builder customizeRequestConfig(RequestConfig.Builder requestConfigBuilder) {
+        // Set the connection timeout in milliseconds
+        requestConfigBuilder.setConnectTimeout(options.getConnectionTimeoutMillis());
         // Set the socket timeout in milliseconds
         return requestConfigBuilder.setSocketTimeout(options.getSocketTimeoutMillis());
     }
