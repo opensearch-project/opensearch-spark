@@ -23,10 +23,9 @@ public class RequestConfigurator implements RestClientBuilder.RequestConfigCallb
 
     @Override
     public RequestConfig.Builder customizeRequestConfig(RequestConfig.Builder requestConfigBuilder) {
-        // Set the connection timeout in milliseconds
-        requestConfigBuilder.setConnectTimeout(options.getConnectionTimeoutMillis());
-        // Set the socket timeout in milliseconds
-        return requestConfigBuilder.setSocketTimeout(options.getSocketTimeoutMillis());
+        // Set the connection and socket timeouts in milliseconds
+        return requestConfigBuilder.setConnectTimeout(options.getConnectionTimeoutMillis())
+                .setSocketTimeout(options.getSocketTimeoutMillis());
     }
 }
 
