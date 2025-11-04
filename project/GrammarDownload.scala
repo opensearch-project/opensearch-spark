@@ -18,12 +18,12 @@ object GrammarDownload {
 
   // Add resolver for grammar downloads
   val grammarResolvers: Seq[MavenRepository] = Seq(
-    "AWS OSS Sonatype Snapshots" at "https://central.sonatype.com/repository/maven-snapshots"
+    "AWS OSS Sonatype Snapshots" at "https://ci.opensearch.org/ci/dbc/snapshots/maven"
   )
 
   // Helper to find latest snapshot version and construct proper URL
   def findLatestSnapshotArtifactInfo(artifactId: String, version: String): (String, String) = {
-    val metadataUrl = s"https://central.sonatype.com/repository/maven-snapshots/org/opensearch/$artifactId/$version/maven-metadata.xml"
+    val metadataUrl = s"https://ci.opensearch.org/ci/dbc/snapshots/maven/org/opensearch/$artifactId/$version/maven-metadata.xml"
 
     try {
       val metadata = XML.load(new URL(metadataUrl))
@@ -115,7 +115,7 @@ object GrammarDownload {
     log.info(s"Found latest snapshot version: $snapshotVersion")
 
     // Download zip file
-    val zipUrl = s"https://central.sonatype.com/repository/maven-snapshots/org/opensearch/$artifactId/$version/$artifactId-$snapshotVersion.zip"
+    val zipUrl = s"https://ci.opensearch.org/ci/dbc/snapshots/maven/org/opensearch/$artifactId/$version/$artifactId-$snapshotVersion.zip"
     val zipFile = tempDir / s"$artifactId-$snapshotVersion.zip"
     log.info(s"Downloading grammar from $zipUrl")
     downloadFile(zipUrl, zipFile)
