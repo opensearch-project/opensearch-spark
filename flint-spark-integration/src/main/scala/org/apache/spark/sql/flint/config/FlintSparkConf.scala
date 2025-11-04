@@ -251,6 +251,13 @@ object FlintSparkConf {
       .datasourceOption()
       .doc("socket duration in milliseconds")
       .createWithDefault(String.valueOf(FlintOptions.DEFAULT_SOCKET_TIMEOUT_MILLIS))
+
+  val CONNECTION_TIMEOUT_MILLIS =
+    FlintConfig(s"spark.datasource.flint.${FlintOptions.CONNECTION_TIMEOUT_MILLIS}")
+      .datasourceOption()
+      .doc("connection duration in milliseconds")
+      .createWithDefault(String.valueOf(FlintOptions.DEFAULT_CONNECTION_TIMEOUT_MILLIS))
+
   val REQUEST_COMPLETION_DELAY_MILLIS =
     FlintConfig(s"spark.datasource.flint.${FlintOptions.REQUEST_COMPLETION_DELAY_MILLIS}")
       .datasourceOption()
@@ -408,6 +415,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       USERNAME,
       PASSWORD,
       SOCKET_TIMEOUT_MILLIS,
+      CONNECTION_TIMEOUT_MILLIS,
       JOB_TYPE,
       REPL_INACTIVITY_TIMEOUT_MILLIS,
       BATCH_BYTES)
