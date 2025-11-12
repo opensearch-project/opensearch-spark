@@ -70,15 +70,15 @@ jobs:
           repository: 'opensearch-project/opensearch-build'
           path: 'build'
 
-      - name: Load secrets (for Sonatype)
-        uses: 1password/load-secrets-action@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
         with:
-          # Export loaded secrets as environment variables
-          export-env: true
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          SONATYPE_USERNAME: op://opensearch-infra-secrets/maven-central-portal-credentials/username
-          SONATYPE_PASSWORD: op://opensearch-infra-secrets/maven-central-portal-credentials/password
+          role-to-assume: ${{ secrets.MAVEN_SNAPSHOTS_S3_ROLE }}
+          aws-region: us-east-1
+
+      - name: Export SNAPSHOT_REPO_URL
+        run: |
+          echo "SNAPSHOT_REPO_URL=${{ secrets.MAVEN_SNAPSHOTS_S3_REPO }}" >> $GITHUB_ENV
 
       - name: generate sha and md5
         run: |
