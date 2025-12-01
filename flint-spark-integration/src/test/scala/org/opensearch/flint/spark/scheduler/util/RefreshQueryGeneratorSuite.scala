@@ -18,7 +18,7 @@ import org.apache.spark.SparkFunSuite
 class RefreshQueryGeneratorTest extends SparkFunSuite with Matchers {
 
   val testTable = "dummy.default.testTable"
-  val expectedTableName = "dummy.default.`testTable`"
+  val expectedTableName = "`dummy`.`default`.`testTable`"
 
   val mockMetadata = mock(classOf[FlintMetadata])
 
