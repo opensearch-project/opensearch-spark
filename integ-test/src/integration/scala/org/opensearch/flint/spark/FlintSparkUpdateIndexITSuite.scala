@@ -62,7 +62,8 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       // Update index options
       val updateOptions =
         FlintSparkIndexOptions(Map("auto_refresh" -> "true", "incremental_refresh" -> "false"))
-      val updatedIndex = flint.skippingIndex().copyWithUpdate(indexInitial, updateOptions)
+      val updatedIndex =
+        flint.skippingIndex().copyWithUpdate(indexInitial, updateOptions)
       flint.updateIndex(updatedIndex)
 
       // Verify index after update
@@ -531,17 +532,24 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
           flint.updateIndex(updatedIndex)
 
           val optionsFinal = flint.describeIndex(testIndex).get.options
-          optionsFinal.autoRefresh() shouldBe expectedOptionsMap.get("auto_refresh").get
           optionsFinal
-            .incrementalRefresh() shouldBe expectedOptionsMap.get("incremental_refresh").get
-          optionsFinal.refreshInterval() shouldBe expectedOptionsMap.get("refresh_interval").get
+            .autoRefresh() shouldBe expectedOptionsMap.get("auto_refresh").get
+          optionsFinal
+            .incrementalRefresh() shouldBe expectedOptionsMap
+            .get("incremental_refresh")
+            .get
+          optionsFinal.refreshInterval() shouldBe expectedOptionsMap
+            .get("refresh_interval")
+            .get
           optionsFinal.checkpointLocation() shouldBe (expectedOptionsMap
             .get("checkpoint_location")
             .get match {
             case Some(_) => Some(checkpointDir.getAbsolutePath)
             case None => None
           })
-          optionsFinal.watermarkDelay() shouldBe expectedOptionsMap.get("watermark_delay").get
+          optionsFinal.watermarkDelay() shouldBe expectedOptionsMap
+            .get("watermark_delay")
+            .get
 
           deleteTestIndex(testIndex)
         }
@@ -677,7 +685,8 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
 
       // Delete all index data intentionally and generate a new source file
       openSearchClient.deleteByQuery(
-        new DeleteByQueryRequest(testIndex).setQuery(QueryBuilders.matchAllQuery()),
+        new DeleteByQueryRequest(testIndex)
+          .setQuery(QueryBuilders.matchAllQuery()),
         RequestOptions.DEFAULT)
       sql(s"""
              | INSERT INTO $testTable
@@ -840,7 +849,8 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
 
       // Delete all index data intentionally
       openSearchClient.deleteByQuery(
-        new DeleteByQueryRequest(testIndex).setQuery(QueryBuilders.matchAllQuery()),
+        new DeleteByQueryRequest(testIndex)
+          .setQuery(QueryBuilders.matchAllQuery()),
         RequestOptions.DEFAULT)
 
       // Expect to only refresh the new file
@@ -863,12 +873,14 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
 
     sourceMap.get("jobId") shouldBe indexName
     sourceMap.get(
-      "scheduledQuery") shouldBe s"REFRESH SKIPPING INDEX ON spark_catalog.default.`test`"
+      "scheduledQuery") shouldBe s"REFRESH SKIPPING INDEX ON `spark_catalog`.`default`.`test`"
     sourceMap.get("enabled") shouldBe true
     sourceMap.get("queryLang") shouldBe "sql"
 
-    val schedule = sourceMap.get("schedule").asInstanceOf[java.util.Map[String, Any]]
-    val interval = schedule.get("interval").asInstanceOf[java.util.Map[String, Any]]
+    val schedule =
+      sourceMap.get("schedule").asInstanceOf[java.util.Map[String, Any]]
+    val interval =
+      schedule.get("interval").asInstanceOf[java.util.Map[String, Any]]
     interval.get("period") shouldBe expectedPeriod
     interval.get("unit") shouldBe expectedUnit
   }
