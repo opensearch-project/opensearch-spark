@@ -116,7 +116,7 @@ object FlintSparkIndex extends Logging {
     require(fullTableName.split('.').length >= 3, s"Table name $fullTableName is not qualified")
 
     val parts = fullTableName.split('.')
-    s"${parts(0)}.${parts(1)}.`${parts.drop(2).mkString(".")}`"
+    s"`${parts(0)}`.`${parts(1)}`.`${parts.drop(2).mkString(".")}`"
   }
 
   /**
@@ -146,7 +146,8 @@ object FlintSparkIndex extends Logging {
    */
   def populateEnvToMetadata: Map[String, String] = {
     // TODO: avoid hardcoding env name below by providing another config
-    val envNames = Seq("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "SERVERLESS_EMR_JOB_ID")
+    val envNames =
+      Seq("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "SERVERLESS_EMR_JOB_ID")
     envNames
       .flatMap(key =>
         Option(System.getenv(key))
