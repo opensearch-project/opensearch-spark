@@ -7,9 +7,6 @@ on:
       - main
       - 0.*
       - fix-snapshot-upload
-  pull_request:
-    branches:
-      - 0.x
 
 # Concurrency control to prevent race conditions in commit mapping
 concurrency:
