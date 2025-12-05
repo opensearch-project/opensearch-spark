@@ -7,6 +7,9 @@ on:
       - main
       - 0.*
       - fix-snapshot-upload
+  pull_request:
+    branches:
+      - fix/maven_upload
 
 # Concurrency control to prevent race conditions in commit mapping
 concurrency:
