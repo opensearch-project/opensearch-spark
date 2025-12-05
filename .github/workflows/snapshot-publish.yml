@@ -89,107 +89,20 @@ jobs:
         run: |
           echo "SNAPSHOT_REPO_URL=${{ env.MAVEN_SNAPSHOTS_S3_REPO }}" >> $GITHUB_ENV
 
-      - name: generate sha and md5
+      - name: Generate SHA and MD5 checksums
         run: |
           for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
           for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
           for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
           for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
 
-      - name: Install XML tools
-        run: sudo apt-get update && sudo apt-get install -y xmlstarlet
+      - name: Install required tools
+        run: sudo apt-get update && sudo apt-get install -y xmlstarlet jq
 
-      - name: Publish snapshots to maven and update metadata
+      - name: Publish snapshots and update metadata
         run: |
-          # Get credentials to upload files directly
-          export SONATYPE_USERNAME=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-username --query SecretString --output text)
-          export SONATYPE_PASSWORD=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-password --query SecretString --output text)
-          echo "::add-mask::$SONATYPE_USERNAME"
-          echo "::add-mask::$SONATYPE_PASSWORD"
-          export SNAPSHOT_REPO_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/"
-
-          # Publish snapshots to maven
-          cd build/resources/publish/
-          cp -a $HOME/.m2/repository/* ./
-          ./publish-snapshot.sh ./
-
-          echo "Snapshot publishing completed. Now uploading commit ID metadata..."
+          # Source the utility functions
+          source .github/publish-utils.sh
           
-          # For each project, create and upload a modified metadata file
-          PROJECTS=("opensearch-spark-standalone_2.12" "opensearch-spark-ppl_2.12" "opensearch-spark-sql-application_2.12")
-          CURRENT_VERSION="${{ steps.extract_version.outputs.version }}"
-          COMMIT_ID="${{ steps.set_commit.outputs.commit_id }}"
-          
-          for PROJECT in "${PROJECTS[@]}"; do
-            echo "Processing metadata for ${PROJECT}"
-          
-            # Create a temporary metadata file with commit ID
-            TEMP_DIR=$(mktemp -d)
-            METADATA_FILE="${TEMP_DIR}/maven-metadata.xml"
-          
-            # Download the current metadata from the repository
-            META_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/${PROJECT}/${CURRENT_VERSION}/maven-metadata.xml"
-            echo "Downloading metadata from ${META_URL}"
-          
-            # Wait a bit to ensure the metadata file is available after publishing
-            sleep 10
-          
-            curl -s -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" -o "${METADATA_FILE}" "${META_URL}"
-          
-            # Check if download was successful
-            if [ -s "${METADATA_FILE}" ]; then
-              echo "Successfully downloaded metadata file"
-              # Modify the metadata to include commit ID
-              cp "${METADATA_FILE}" "${METADATA_FILE}.bak"
-          
-              awk -v commit="${COMMIT_ID}" '
-                /<versioning>/ {
-                  print $0
-                  print "  <commitId>" commit "</commitId>"
-                  next
-                }
-                {print}
-              ' "${METADATA_FILE}.bak" > "${METADATA_FILE}"
-          
-              echo "Modified metadata content:"
-              cat "${METADATA_FILE}"
-          
-              # Upload the modified metadata back
-              echo "Uploading modified metadata to ${META_URL}"
-              curl -v -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" --upload-file "${METADATA_FILE}" "${META_URL}"
-            else
-              echo "Failed to download metadata for ${PROJECT} or file is empty"
-              echo "Checking if URL exists:"
-              curl -I -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" "${META_URL}"
-              echo "Will retry after 20 seconds..."
-              sleep 20
-          
-              curl -s -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" -o "${METADATA_FILE}" "${META_URL}"
-          
-              if [ -s "${METADATA_FILE}" ]; then
-                echo "Retry successful. Modifying metadata to include commit ID"
-                cp "${METADATA_FILE}" "${METADATA_FILE}.bak"
-          
-                awk -v commit="${COMMIT_ID}" '
-                  /<versioning>/ {
-                    print $0
-                    print "  <commitId>" commit "</commitId>"
-                    next
-                  }
-                  {print}
-                ' "${METADATA_FILE}.bak" > "${METADATA_FILE}"
-          
-                echo "Modified metadata content:"
-                cat "${METADATA_FILE}"
-          
-                # Upload the modified metadata back
-                echo "Uploading modified metadata to ${META_URL}"
-                curl -v -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" --upload-file "${METADATA_FILE}" "${META_URL}"
-              else
-                echo "Failed again to download metadata for ${PROJECT}, skipping"
-              fi
-            fi
-          
-            # Clean up
-            rm -rf "${TEMP_DIR}"
-          done
+          # Call the main function with version and commit ID
+          publish_snapshots_and_update_metadata "${{ steps.extract_version.outputs.version }}" "${{ steps.set_commit.outputs.commit_id }}"
