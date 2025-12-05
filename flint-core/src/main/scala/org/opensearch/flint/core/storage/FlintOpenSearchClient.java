@@ -18,12 +18,13 @@ import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.flint.core.metrics.MetricConstants;
 import org.opensearch.flint.core.metrics.MetricsUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Option;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
@@ -31,7 +32,7 @@ import java.util.stream.Collectors;
  */
 public class FlintOpenSearchClient implements FlintClient {
 
-  private static final Logger LOG = Logger.getLogger(FlintOpenSearchClient.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(FlintOpenSearchClient.class);
 
   private final FlintOptions options;
 

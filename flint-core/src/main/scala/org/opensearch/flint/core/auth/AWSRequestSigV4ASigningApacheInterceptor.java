@@ -34,8 +34,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.http.protocol.HttpCoreContext.HTTP_TARGET_HOST;
 import static org.opensearch.flint.core.auth.AWSRequestSigningApacheInterceptor.nvpToMapParams;
@@ -47,7 +47,7 @@ import static org.opensearch.flint.core.auth.AWSRequestSigningApacheInterceptor.
  * and updates the request headers to include the signature.
  */
 public class AWSRequestSigV4ASigningApacheInterceptor implements HttpRequestInterceptor {
-    private static final Logger LOG = Logger.getLogger(AWSRequestSigV4ASigningApacheInterceptor.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(AWSRequestSigV4ASigningApacheInterceptor.class);
 
     private static final String HTTPS_PROTOCOL = "https";
     private static final int HTTPS_PORT = 443;
@@ -170,7 +170,7 @@ public class AWSRequestSigV4ASigningApacheInterceptor implements HttpRequestInte
         try {
             return signer.sign(request, executionAttributes);
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Error Sigv4a signing the request", e);
+            LOG.error("Error Sigv4a signing the request", e);
             throw e;
         }
     }

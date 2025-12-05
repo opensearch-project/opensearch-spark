@@ -5,10 +5,11 @@
 
 package org.opensearch.flint.core.storage.ratelimit;
 
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BulkRequestRateLimiterNoop implements BulkRequestRateLimiter {
-  private static final Logger LOG = Logger.getLogger(BulkRequestRateLimiterNoop.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(BulkRequestRateLimiterNoop.class);
 
   public BulkRequestRateLimiterNoop() {
     LOG.info("Rate limit for bulk request was not set.");
