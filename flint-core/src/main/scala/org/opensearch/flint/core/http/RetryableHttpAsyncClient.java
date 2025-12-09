@@ -12,7 +12,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
@@ -26,7 +27,7 @@ import org.opensearch.flint.core.FlintOptions;
  */
 public class RetryableHttpAsyncClient extends CloseableHttpAsyncClient {
 
-  private static final Logger LOG = Logger.getLogger(RetryableHttpAsyncClient.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(RetryableHttpAsyncClient.class);
 
   /**
    * Delegated internal HTTP client that execute the request underlying.
@@ -108,7 +109,7 @@ public class RetryableHttpAsyncClient extends CloseableHttpAsyncClient {
                 return futureGet.call();
               });
         } catch (FailsafeException ex) {
-          LOG.severe("Request failed permanently. Re-throwing original exception.");
+          LOG.error("Request failed permanently. Re-throwing original exception.");
 
           // Failsafe will wrap checked exception, such as ExecutionException
           // So here we have to unwrap failsafe exception and rethrow it
