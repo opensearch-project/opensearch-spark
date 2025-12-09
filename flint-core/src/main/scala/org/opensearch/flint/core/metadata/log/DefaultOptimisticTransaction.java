@@ -5,13 +5,11 @@
 
 package org.opensearch.flint.core.metadata.log;
 
-import static java.util.logging.Level.SEVERE;
-import static java.util.logging.Level.WARNING;
-
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.opensearch.flint.common.metadata.log.FlintMetadataLog;
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry;
@@ -27,7 +25,7 @@ import org.opensearch.flint.core.metrics.MetricsUtil;
  */
 public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T> {
 
-  private static final Logger LOG = Logger.getLogger(DefaultOptimisticTransaction.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(DefaultOptimisticTransaction.class);
 
   /**
    * Flint metadata log
@@ -74,7 +72,7 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
 
     // Perform initial log check
     if (!initialCondition.test(latest)) {
-      LOG.warning("Initial log entry doesn't satisfy precondition " + latest);
+      LOG.warn("Initial log entry doesn't satisfy precondition " + latest);
       emitConditionCheckFailedMetric(latest);
       throw new IllegalStateException(
           String.format("Index state [%s] doesn't satisfy precondition", latest.state()));
@@ -111,14 +109,14 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
       }
       return result;
     } catch (Exception e) {
-      LOG.log(SEVERE, "Rolling back transient log due to transaction operation failure", e);
+      LOG.error("Rolling back transient log due to transaction operation failure", e);
       try {
         // Roll back transient log if any
         if (transientAction != null) {
           metadataLog.add(initialLog);
         }
       } catch (Exception ex) {
-        LOG.log(WARNING, "Failed to rollback transient log", ex);
+        LOG.warn("Failed to rollback transient log", ex);
       }
       throw new IllegalStateException("Failed to commit transaction operation", e);
     }

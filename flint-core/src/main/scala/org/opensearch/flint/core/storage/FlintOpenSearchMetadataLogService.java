@@ -7,7 +7,8 @@ package org.opensearch.flint.core.storage;
 
 import java.io.IOException;
 import java.util.Optional;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.GetIndexRequest;
@@ -26,7 +27,7 @@ import org.opensearch.flint.core.metadata.log.DefaultOptimisticTransaction;
  */
 public class FlintOpenSearchMetadataLogService implements FlintMetadataLogService {
 
-  private static final Logger LOG = Logger.getLogger(FlintOpenSearchMetadataLogService.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(FlintOpenSearchMetadataLogService.class);
 
   public final static String METADATA_LOG_INDEX_NAME_PREFIX = ".query_execution_request";
 
@@ -74,7 +75,7 @@ public class FlintOpenSearchMetadataLogService implements FlintMetadataLogServic
           initIndexMetadataLog();
         } else {
           String errorMsg = "Metadata log index not found " + metadataLogIndexName;
-          LOG.warning(errorMsg);
+          LOG.warn(errorMsg);
           return Optional.empty();
         }
       }

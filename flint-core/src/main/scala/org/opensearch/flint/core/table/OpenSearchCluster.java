@@ -15,12 +15,13 @@ import org.opensearch.flint.core.storage.OpenSearchClientUtils;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.stream.Collectors;
 
 public class OpenSearchCluster {
 
-  private static final Logger LOG = Logger.getLogger(OpenSearchCluster.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(OpenSearchCluster.class);
 
   /**
    * Creates list of OpenSearchIndexTable instance of indices in OpenSearch domain.

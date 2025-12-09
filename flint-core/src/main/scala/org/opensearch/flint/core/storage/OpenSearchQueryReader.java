@@ -13,7 +13,8 @@ import org.opensearch.search.builder.SearchSourceBuilder;
 
 import java.io.IOException;
 import java.util.Optional;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.opensearch.flint.core.metrics.MetricConstants.REQUEST_METADATA_READ_METRIC_PREFIX;
 
@@ -22,7 +23,7 @@ import static org.opensearch.flint.core.metrics.MetricConstants.REQUEST_METADATA
  */
 public class OpenSearchQueryReader extends OpenSearchReader {
 
-  private static final Logger LOG = Logger.getLogger(OpenSearchQueryReader.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(OpenSearchQueryReader.class);
 
   public OpenSearchQueryReader(IRestHighLevelClient client, String indexName, SearchSourceBuilder searchSourceBuilder) {
     super(client, new SearchRequest().indices(indexName).source(searchSourceBuilder));
