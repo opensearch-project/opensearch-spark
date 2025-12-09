@@ -7,7 +7,8 @@ package org.opensearch.flint.core.storage.ratelimit;
 
 import com.google.common.util.concurrent.RateLimiter;
 import java.time.Clock;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.metrics.MetricConstants;
 import org.opensearch.flint.core.metrics.MetricsUtil;
@@ -42,7 +43,7 @@ import org.opensearch.flint.core.storage.RequestRateMeter;
  * Just call acquirePermit and proceed when it returns.
  */
 public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter, FeedbackHandler {
-  private static final Logger LOG = Logger.getLogger(BulkRequestRateLimiterImpl.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(BulkRequestRateLimiterImpl.class);
 
   /** Minimum rate limit. */
   private final long minRate;
@@ -135,7 +136,7 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter, Feedb
   public long handleFeedback(TimeoutRequestFeedback feedbackEvent) {
     long currentRateLimit = getRate();
     if (canDecreaseRate()) {
-      LOG.warning("Decreasing rate. Reason: Bulk request socket/connection timeout.");
+      LOG.warn("Decreasing rate. Reason: Bulk request socket/connection timeout.");
       return (long) (currentRateLimit * decreaseRatioTimeout);
     }
     return currentRateLimit;
@@ -145,7 +146,7 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter, Feedb
   public long handleFeedback(RetryableFailureRequestFeedback feedbackEvent) {
     long currentRateLimit = getRate();
     if (canDecreaseRate()) {
-      LOG.warning("Decreasing rate. Reason: Bulk request failed.");
+      LOG.warn("Decreasing rate. Reason: Bulk request failed.");
       return (long) (currentRateLimit * decreaseRatioFailure);
     }
     return currentRateLimit;
@@ -156,7 +157,7 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter, Feedb
     long currentRateLimit = getRate();
     if (feedbackEvent.latencyMillis > latencyThresholdMillis) {
       if (canDecreaseRate()) {
-        LOG.warning("Decreasing rate. Reason: Bulk latency high. Latency = " + feedbackEvent.latencyMillis + " exceeds threshold " + latencyThresholdMillis);
+        LOG.warn("Decreasing rate. Reason: Bulk latency high. Latency = " + feedbackEvent.latencyMillis + " exceeds threshold " + latencyThresholdMillis);
         return (long) (currentRateLimit * decreaseRatioLatency);
       }
       return currentRateLimit;
@@ -164,7 +165,7 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter, Feedb
     if (isEstimatedCurrentRateCloseToLimit()) {
       return currentRateLimit + increaseStep;
     }
-    LOG.warning("Rate increase blocked. Reason: Current rate is not close to limit " + currentRateLimit);
+    LOG.warn("Rate increase blocked. Reason: Current rate is not close to limit " + currentRateLimit);
     return currentRateLimit;
   }
 
@@ -174,7 +175,7 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter, Feedb
    */
   private long getEstimatedCurrentRate() {
     long currentEstimatedRate = requestRateMeter.getCurrentEstimatedRate();
-    LOG.warning("Current estimated rate is " + currentEstimatedRate + " bytes/sec");
+    LOG.warn("Current estimated rate is " + currentEstimatedRate + " bytes/sec");
     return currentEstimatedRate;
   }
 

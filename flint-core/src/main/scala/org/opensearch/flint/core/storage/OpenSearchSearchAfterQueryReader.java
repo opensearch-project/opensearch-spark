@@ -15,7 +15,8 @@ import org.opensearch.search.builder.SearchSourceBuilder;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.stream.Collectors;
 
 /**
@@ -23,8 +24,7 @@ import java.util.stream.Collectors;
  */
 public class OpenSearchSearchAfterQueryReader extends OpenSearchReader {
 
-  private static final Logger LOG =
-      Logger.getLogger(OpenSearchSearchAfterQueryReader.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(OpenSearchSearchAfterQueryReader.class);
 
   /**
    * current search_after value, init value is null
@@ -56,7 +56,7 @@ public class OpenSearchSearchAfterQueryReader extends OpenSearchReader {
           .collect(Collectors.joining(",")));
       return response;
     } catch (Exception e) {
-      LOG.warning(e.getMessage());
+      LOG.warn(e.getMessage());
       throw new RuntimeException(e);
     }
   }

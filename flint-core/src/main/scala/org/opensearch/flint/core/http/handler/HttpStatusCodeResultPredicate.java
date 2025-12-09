@@ -8,7 +8,8 @@ package org.opensearch.flint.core.http.handler;
 import dev.failsafe.function.CheckedPredicate;
 import java.util.Arrays;
 import java.util.Set;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.stream.Collectors;
 import org.apache.http.HttpResponse;
 
@@ -19,7 +20,7 @@ import org.apache.http.HttpResponse;
  */
 public class HttpStatusCodeResultPredicate<T> implements CheckedPredicate<T> {
 
-  private static final Logger LOG = Logger.getLogger(HttpStatusCodeResultPredicate.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(HttpStatusCodeResultPredicate.class);
 
   /**
    * Retryable HTTP status code list

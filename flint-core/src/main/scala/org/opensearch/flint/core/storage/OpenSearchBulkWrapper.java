@@ -16,7 +16,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opensearch.action.DocWriteRequest;
 import org.opensearch.action.bulk.BulkItemResponse;
 import org.opensearch.action.bulk.BulkRequest;
@@ -37,7 +38,7 @@ import org.opensearch.rest.RestStatus;
  */
 public class OpenSearchBulkWrapper {
 
-  private static final Logger LOG = Logger.getLogger(OpenSearchBulkWrapper.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(OpenSearchBulkWrapper.class);
 
   private final RetryPolicy<BulkResponse> retryPolicy;
   private final BulkRequestRateLimiter rateLimiter;
@@ -111,7 +112,7 @@ public class OpenSearchBulkWrapper {
           });
       return res;
     } catch (FailsafeException ex) {
-      LOG.severe("Request failed permanently. Re-throwing original exception.");
+      LOG.error("Request failed permanently. Re-throwing original exception.");
 
       // unwrap original exception and throw
       throw new RuntimeException(ex.getCause());
