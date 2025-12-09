@@ -14,8 +14,8 @@ import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.IRestHighLevelClient;
 
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.opensearch.flint.core.metrics.MetricConstants.REQUEST_METADATA_READ_METRIC_PREFIX;
 import static org.opensearch.flint.core.metrics.MetricConstants.REQUEST_METADATA_WRITE_METRIC_PREFIX;
@@ -26,7 +26,7 @@ import static org.opensearch.flint.core.metrics.MetricConstants.REQUEST_METADATA
  * document updates and upserts with optional optimistic concurrency control.
  */
 public class OpenSearchUpdater {
-    private static final Logger LOG = Logger.getLogger(OpenSearchUpdater.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(OpenSearchUpdater.class);
 
     private final String indexName;
     private final FlintClient flintClient;
@@ -101,7 +101,7 @@ public class OpenSearchUpdater {
 
         if (!exists) {
             String errorMsg = "Index not found: " + indexName;
-            LOG.log(Level.SEVERE, errorMsg);
+            LOG.error(errorMsg);
             throw new IllegalStateException(errorMsg);
         }
     }

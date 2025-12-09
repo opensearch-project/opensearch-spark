@@ -19,7 +19,8 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.stream.Collectors;
 import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.flint.core.http.handler.ExceptionClassNameFailurePredicate;
@@ -32,7 +33,7 @@ import java.io.Serializable;
  */
 public class FlintRetryOptions implements Serializable {
 
-  private static final Logger LOG = Logger.getLogger(FlintRetryOptions.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(FlintRetryOptions.class);
 
   /**
    * All Flint options.
@@ -109,11 +110,11 @@ public class FlintRetryOptions implements Serializable {
   }
 
   private static <T> void onFailure(ExecutionAttemptedEvent<T> event) {
-    LOG.severe("Attempt to execute request failed: " + event);
+    LOG.error("Attempt to execute request failed: " + event);
   }
 
   private static <T> void onRetry(ExecutionAttemptedEvent<T> event) {
-    LOG.warning("Retrying failed request at #" + event.getAttemptCount());
+    LOG.warn("Retrying failed request at #" + event.getAttemptCount());
   }
 
   private String getServiceName() {

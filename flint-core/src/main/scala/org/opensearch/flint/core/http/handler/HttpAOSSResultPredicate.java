@@ -11,7 +11,8 @@ import org.apache.http.HttpResponse;
 import org.apache.http.entity.BufferedHttpEntity;
 import org.apache.http.util.EntityUtils;
 
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Failure handler based on HTTP response from AOSS.
@@ -20,7 +21,7 @@ import java.util.logging.Logger;
  */
 public class HttpAOSSResultPredicate<T> implements CheckedPredicate<T> {
 
-  private static final Logger LOG = Logger.getLogger(HttpAOSSResultPredicate.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(HttpAOSSResultPredicate.class);
 
   public static final int BAD_REQUEST_STATUS_CODE = 400;
   public static final String RESOURCE_ALREADY_EXISTS_EXCEPTION_MESSAGE = "resource_already_exists_exception";

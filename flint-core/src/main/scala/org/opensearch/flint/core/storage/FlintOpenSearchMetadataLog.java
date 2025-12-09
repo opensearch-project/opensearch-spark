@@ -5,7 +5,6 @@
 
 package org.opensearch.flint.core.storage;
 
-import static java.util.logging.Level.SEVERE;
 import static org.opensearch.flint.core.storage.FlintMetadataLogEntryOpenSearchConverter.constructLogEntry;
 import static org.opensearch.flint.core.storage.FlintMetadataLogEntryOpenSearchConverter.toJson;
 import static org.opensearch.action.support.WriteRequest.RefreshPolicy;
@@ -16,7 +15,8 @@ import java.io.IOException;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opensearch.OpenSearchException;
 import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.delete.DeleteRequest;
@@ -45,7 +45,7 @@ import org.opensearch.flint.core.IRestHighLevelClient;
  */
 public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadataLogEntry> {
 
-  private static final Logger LOG = Logger.getLogger(FlintOpenSearchMetadataLog.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(FlintOpenSearchMetadataLog.class);
 
   /**
    * Flint options to create Rest OpenSearch client
@@ -77,7 +77,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     FlintMetadataLogEntry latest;
     if (!exists()) {
       String errorMsg = "Flint Metadata Log index not found " + metadataLogIndexName;
-      LOG.log(SEVERE, errorMsg);
+      LOG.error(errorMsg);
       throw new IllegalStateException(errorMsg);
     }
     if (logEntry.id().isEmpty()) {
