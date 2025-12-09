@@ -17,14 +17,15 @@ import org.apache.spark.metrics.source.Source;
 import scala.collection.Seq;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility class for managing metrics in the OpenSearch Flint context.
  */
 public final class MetricsUtil {
 
-    private static final Logger LOG = Logger.getLogger(MetricsUtil.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(MetricsUtil.class);
 
     private MetricsUtil() {
         // Private constructor to prevent instantiation
@@ -174,7 +175,7 @@ public final class MetricsUtil {
     public static void registerGauge(String metricName, final AtomicInteger value, boolean isIndexMetric) {
         MetricRegistry metricRegistry = getMetricRegistry(isIndexMetric);
         if (metricRegistry == null) {
-            LOG.warning("MetricRegistry not available, cannot register gauge: " + metricName);
+            LOG.warn("MetricRegistry not available, cannot register gauge: " + metricName);
             return;
         }
         metricRegistry.register(metricName, (Gauge<Integer>) value::get);
@@ -193,7 +194,7 @@ public final class MetricsUtil {
     private static MetricRegistry getMetricRegistry(boolean isIndexMetric) {
         SparkEnv sparkEnv = SparkEnv.get();
         if (sparkEnv == null) {
-            LOG.warning("Spark environment not available, cannot access MetricRegistry.");
+            LOG.warn("Spark environment not available, cannot access MetricRegistry.");
             return null;
         }
 

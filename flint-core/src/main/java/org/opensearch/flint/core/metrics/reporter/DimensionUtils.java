@@ -7,9 +7,8 @@ package org.opensearch.flint.core.metrics.reporter;
 
 import java.util.Map;
 import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.amazonaws.services.cloudwatch.model.Dimension;
 import org.apache.commons.lang3.StringUtils;
@@ -22,7 +21,7 @@ import org.apache.spark.SparkEnv;
  * application ID, and more.
  */
 public class DimensionUtils {
-    private static final Logger LOG = Logger.getLogger(DimensionUtils.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(DimensionUtils.class);
     private static final String DIMENSION_JOB_ID = "jobId";
     private static final String DIMENSION_JOB_TYPE = "jobType";
     private static final String DIMENSION_APPLICATION_ID = "applicationId";
@@ -136,10 +135,10 @@ public class DimensionUtils {
             if (SparkEnv.get() != null && SparkEnv.get().conf() != null) {
                 propertyValue = SparkEnv.get().conf().get(sparkConfKey, defaultValue);
             } else {
-                LOG.warning("Spark environment or configuration is not available, defaulting to provided default value.");
+                LOG.warn("Spark environment or configuration is not available, defaulting to provided default value.");
             }
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Error accessing Spark configuration with key: " + sparkConfKey + ", defaulting to provided default value.", e);
+            LOG.error("Error accessing Spark configuration with key: " + sparkConfKey + ", defaulting to provided default value.", e);
             throw e;
         }
         return propertyValue;

@@ -8,14 +8,15 @@ package org.opensearch.flint.core.http.handler;
 import dev.failsafe.function.CheckedPredicate;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Failure predicate that determines if retryable based on error stacktrace iteration.
  */
 public abstract class ErrorStacktraceFailurePredicate implements CheckedPredicate<Throwable> {
 
-  private static final Logger LOG = Logger.getLogger(ErrorStacktraceFailurePredicate.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(ErrorStacktraceFailurePredicate.class);
 
   /**
    * This base class implementation iterates the stacktrace and pass each exception

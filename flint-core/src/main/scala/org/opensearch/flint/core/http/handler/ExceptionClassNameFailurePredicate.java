@@ -6,21 +6,21 @@
 package org.opensearch.flint.core.http.handler;
 
 import static java.util.Collections.newSetFromMap;
-import static java.util.logging.Level.SEVERE;
 
 import dev.failsafe.function.CheckedPredicate;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Failure handler based on exception class type check.
  */
 public class ExceptionClassNameFailurePredicate extends ErrorStacktraceFailurePredicate {
 
-  private static final Logger LOG = Logger.getLogger(ErrorStacktraceFailurePredicate.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(ExceptionClassNameFailurePredicate.class);
 
   /**
    * Retryable exception class types.
@@ -63,7 +63,7 @@ public class ExceptionClassNameFailurePredicate extends ErrorStacktraceFailurePr
       return (Class<? extends Throwable>) Class.forName(className);
     } catch (ClassNotFoundException e) {
       String errorMsg = "Failed to load class " + className;
-      LOG.log(SEVERE, errorMsg, e);
+      LOG.error(errorMsg, e);
       throw new IllegalStateException(errorMsg);
     }
   }
