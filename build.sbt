@@ -100,7 +100,7 @@ lazy val commonSettings = Seq(
 
 // running `scalafmtAll` includes all subprojects under root
 lazy val root = (project in file("."))
-  .aggregate(flintCommons, flintCore, flintSparkIntegration, pplSparkIntegration, sparkSqlApplication, integtest)
+  .aggregate(flintCommons, flintCore, flintSparkIntegration, pplSparkIntegration, unifiedQuerySparkIntegration, sparkSqlApplication, integtest)
   .disablePlugins(AssemblyPlugin)
   .settings(name := "flint", publish / skip := true)
 
@@ -281,6 +281,57 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
     Antlr4 / antlr4GenListener := true,
     Antlr4 / antlr4GenVisitor := true,
 
+    // Assembly settings
+    assemblyPackageScala / assembleArtifact := false,
+    assembly / assemblyOption ~= {
+      _.withIncludeScala(false)
+    },
+    assembly / assemblyMergeStrategy := {
+      case PathList(ps @ _*) if ps.last endsWith ("module-info.class") =>
+        MergeStrategy.discard
+      case PathList("module-info.class") => MergeStrategy.discard
+      case PathList("META-INF", "versions", xs @ _, "module-info.class") =>
+        MergeStrategy.discard
+      case x =>
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
+        oldStrategy(x)
+    },
+    assembly / test := (Test / test).value
+  )
+
+lazy val unifiedQuerySparkIntegration = (project in file("unified-query-spark-integration"))
+  .enablePlugins(AssemblyPlugin)
+  .settings(
+    commonSettings,
+    name := "unified-query-spark-integration",
+    scalaVersion := scala212,
+    resolvers ++= Seq(
+      // "OpenSearch Snapshots" at "https://aws.oss.sonatype.org/content/repositories/snapshots/",
+      "OpenSearch Snapshots" at "https://ci.opensearch.org/ci/dbc/snapshots/maven/",
+      "JitPack" at "https://jitpack.io" // TODO: exclude okhttp-aws-signer which requires this
+    ),
+    // Force all Jackson dependencies to use Spark's version to avoid conflicts
+    dependencyOverrides ++= Seq(
+      "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion,
+      "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % jacksonVersion
+    ),
+    libraryDependencies ++= Seq(
+      "org.scalactic" %% "scalactic" % "3.2.15" % "test",
+      "org.scalatest" %% "scalatest" % "3.2.15" % "test",
+      "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
+      "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
+      "com.github.sbt" % "junit-interface" % "0.13.3" % "test",
+      // unified-query-api dependency from OpenSearch SQL project
+      "org.opensearch.query" % "unified-query-api" % "2.19.4.0-SNAPSHOT"
+        excludeAll(
+          ExclusionRule(organization = "com.fasterxml.jackson.core"),
+          ExclusionRule(organization = "com.fasterxml.jackson.dataformat"),
+          ExclusionRule(organization = "com.fasterxml.jackson.module"),
+          ExclusionRule(organization = "com.fasterxml.jackson.jaxrs"),
+          ExclusionRule(organization = "org.opensearch"))
+        exclude("org.opensearch.query", "unified-query-protocol")),
+    libraryDependencies ++= deps(sparkVersion),
+    publish / skip := true,
     // Assembly settings
     assemblyPackageScala / assembleArtifact := false,
     assembly / assemblyOption ~= {
