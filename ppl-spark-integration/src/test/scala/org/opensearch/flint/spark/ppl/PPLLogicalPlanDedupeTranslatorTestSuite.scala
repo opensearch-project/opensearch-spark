@@ -6,8 +6,8 @@
 package org.opensearch.flint.spark.ppl
 
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
-import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
-import org.opensearch.sql.ppl.utils.{SortUtils, WindowSpecTransformer}
+import org.opensearch.flint.spark.ppl.legacy.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
+import org.opensearch.flint.spark.ppl.legacy.ppl.utils.{SortUtils, WindowSpecTransformer}
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite

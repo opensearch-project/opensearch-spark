@@ -5,8 +5,8 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
-import org.opensearch.sql.ppl.utils.SortUtils
+import org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.seq
+import org.opensearch.flint.spark.ppl.legacy.ppl.utils.SortUtils
 import org.scalatest.matchers.should.Matchers.{a, convertToAnyShouldWrapper}
 
 import org.apache.spark.sql.{QueryTest, Row}

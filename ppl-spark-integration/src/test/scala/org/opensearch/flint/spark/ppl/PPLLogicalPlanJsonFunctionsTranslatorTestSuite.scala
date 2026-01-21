@@ -8,12 +8,12 @@ package org.opensearch.flint.spark.ppl
 import java.util
 
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
-import org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_APPEND
-import org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_DELETE
-import org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_EXTEND
-import org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_SET
-import org.opensearch.sql.expression.function.SerializableUdf.visit
-import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
+import org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.JSON_APPEND
+import org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.JSON_DELETE
+import org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.JSON_EXTEND
+import org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.JSON_SET
+import org.opensearch.flint.spark.ppl.legacy.expression.function.SerializableUdf.visit
+import org.opensearch.flint.spark.ppl.legacy.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite

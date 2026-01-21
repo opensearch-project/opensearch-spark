@@ -6,9 +6,9 @@
 package org.opensearch.flint.spark.ppl
 
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
-import org.opensearch.sql.expression.function.BuiltinFunctionName.CIDR
-import org.opensearch.sql.expression.function.SerializableUdf.visit
-import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
+import org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.CIDR
+import org.opensearch.flint.spark.ppl.legacy.expression.function.SerializableUdf.visit
+import org.opensearch.flint.spark.ppl.legacy.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
