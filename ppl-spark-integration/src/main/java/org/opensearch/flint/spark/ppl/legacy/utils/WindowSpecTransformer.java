@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.spark.ppl.legacy.ppl.utils;
+package org.opensearch.flint.spark.ppl.legacy.utils;
 
 import org.apache.spark.sql.catalyst.expressions.Alias;
 import org.apache.spark.sql.catalyst.expressions.CurrentRow$;
@@ -31,8 +31,8 @@ import static java.lang.String.format;
 import static org.opensearch.flint.spark.ppl.legacy.ast.expression.DataType.STRING;
 import static org.opensearch.flint.spark.ppl.legacy.ast.expression.SpanUnit.NONE;
 import static org.opensearch.flint.spark.ppl.legacy.ast.expression.SpanUnit.UNKNOWN;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.seq;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.translate;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.seq;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.translate;
 
 public interface WindowSpecTransformer {
 

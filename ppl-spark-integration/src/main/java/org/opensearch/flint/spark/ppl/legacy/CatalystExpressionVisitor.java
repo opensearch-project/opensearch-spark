@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.spark.ppl.legacy.ppl;
+package org.opensearch.flint.spark.ppl.legacy;
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
@@ -60,10 +60,10 @@ import org.opensearch.flint.spark.ppl.legacy.ast.tree.Kmeans;
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.RareTopN;
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.UnresolvedPlan;
 import org.opensearch.flint.spark.ppl.legacy.expression.function.SerializableUdf;
-import org.opensearch.flint.spark.ppl.legacy.ppl.utils.AggregatorTransformer;
-import org.opensearch.flint.spark.ppl.legacy.ppl.utils.BuiltinFunctionTransformer;
-import org.opensearch.flint.spark.ppl.legacy.ppl.utils.ComparatorTransformer;
-import org.opensearch.flint.spark.ppl.legacy.ppl.utils.JavaToScalaTransformer;
+import org.opensearch.flint.spark.ppl.legacy.utils.AggregatorTransformer;
+import org.opensearch.flint.spark.ppl.legacy.utils.BuiltinFunctionTransformer;
+import org.opensearch.flint.spark.ppl.legacy.utils.ComparatorTransformer;
+import org.opensearch.flint.spark.ppl.legacy.utils.JavaToScalaTransformer;
 import scala.Option;
 import scala.PartialFunction;
 import scala.Tuple2;
@@ -80,12 +80,12 @@ import static java.util.Collections.emptyList;
 import static java.util.List.of;
 import static org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.CIDR;
 import static org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.EQUAL;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.CatalystPlanContext.findRelation;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.BuiltinFunctionTransformer.createIntervalArgs;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.seq;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.translate;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.RelationUtils.resolveField;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.WindowSpecTransformer.window;
+import static org.opensearch.flint.spark.ppl.legacy.CatalystPlanContext.findRelation;
+import static org.opensearch.flint.spark.ppl.legacy.utils.BuiltinFunctionTransformer.createIntervalArgs;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.seq;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.translate;
+import static org.opensearch.flint.spark.ppl.legacy.utils.RelationUtils.resolveField;
+import static org.opensearch.flint.spark.ppl.legacy.utils.WindowSpecTransformer.window;
 
 /**
  * Class of building catalyst AST Expression nodes.

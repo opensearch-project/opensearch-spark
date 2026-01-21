@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.spark.ppl.legacy.ppl;
+package org.opensearch.flint.spark.ppl.legacy;
 
 import lombok.Getter;
 import org.apache.spark.sql.SparkSession;
@@ -26,7 +26,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.seq;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.seq;
 import static scala.collection.JavaConverters.asJavaCollection;
 import static scala.collection.JavaConverters.asScalaBuffer;
 

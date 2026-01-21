@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.spark.ppl.legacy.ppl.utils;
+package org.opensearch.flint.spark.ppl.legacy.utils;
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
 import org.apache.spark.sql.catalyst.expressions.Alias$;
@@ -16,8 +16,8 @@ import org.opensearch.flint.spark.ppl.legacy.ast.expression.Alias;
 import org.opensearch.flint.spark.ppl.legacy.ast.expression.Field;
 import org.opensearch.flint.spark.ppl.legacy.ast.expression.QualifiedName;
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.Lookup;
-import org.opensearch.flint.spark.ppl.legacy.ppl.CatalystExpressionVisitor;
-import org.opensearch.flint.spark.ppl.legacy.ppl.CatalystPlanContext;
+import org.opensearch.flint.spark.ppl.legacy.CatalystExpressionVisitor;
+import org.opensearch.flint.spark.ppl.legacy.CatalystPlanContext;
 import scala.Option;
 
 import java.util.ArrayList;
@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.seq;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.seq;
 
 public interface LookupTransformer {
 

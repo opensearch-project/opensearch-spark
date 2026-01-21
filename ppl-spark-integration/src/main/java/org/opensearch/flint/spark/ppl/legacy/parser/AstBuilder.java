@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.spark.ppl.legacy.ppl.parser;
+package org.opensearch.flint.spark.ppl.legacy.parser;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -56,7 +56,7 @@ import org.opensearch.flint.spark.ppl.legacy.ast.tree.SubqueryAlias;
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.TableFunction;
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.TopAggregation;
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.UnresolvedPlan;
-import org.opensearch.flint.spark.ppl.legacy.ppl.utils.ArgumentFactory;
+import org.opensearch.flint.spark.ppl.legacy.utils.ArgumentFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;

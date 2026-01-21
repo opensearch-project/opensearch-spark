@@ -8,7 +8,7 @@ package org.opensearch.flint.spark.ppl.legacy.expression.function;
 import static org.opensearch.flint.spark.ppl.legacy.expression.function.JsonUtils.objectMapper;
 import static org.opensearch.flint.spark.ppl.legacy.expression.function.JsonUtils.removeNestedKey;
 import static org.opensearch.flint.spark.ppl.legacy.expression.function.JsonUtils.updateNestedJson;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.seq;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.seq;
 
 import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddressString;

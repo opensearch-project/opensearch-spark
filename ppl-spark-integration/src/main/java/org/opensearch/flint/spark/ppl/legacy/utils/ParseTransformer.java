@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.spark.ppl.legacy.ppl.utils;
+package org.opensearch.flint.spark.ppl.legacy.utils;
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
@@ -14,7 +14,7 @@ import org.opensearch.flint.spark.ppl.legacy.ast.expression.Field;
 import org.opensearch.flint.spark.ppl.legacy.ast.expression.Literal;
 import org.opensearch.flint.spark.ppl.legacy.ast.expression.ParseMethod;
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.Parse;
-import org.opensearch.flint.spark.ppl.legacy.ppl.CatalystPlanContext;
+import org.opensearch.flint.spark.ppl.legacy.CatalystPlanContext;
 import scala.Option;
 import scala.collection.Seq;
 
@@ -24,7 +24,7 @@ import java.util.Map;
 
 import static org.apache.spark.sql.types.DataTypes.IntegerType;
 import static org.apache.spark.sql.types.DataTypes.StringType;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.seq;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.seq;
 
 public interface ParseTransformer {
     /**

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.spark.ppl.legacy.ppl.parser;
+package org.opensearch.flint.spark.ppl.legacy.parser;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -45,8 +45,8 @@ import org.opensearch.flint.spark.ppl.legacy.ast.expression.subquery.ExistsSubqu
 import org.opensearch.flint.spark.ppl.legacy.ast.expression.subquery.InSubquery;
 import org.opensearch.flint.spark.ppl.legacy.ast.expression.subquery.ScalarSubquery;
 import org.opensearch.flint.spark.ppl.legacy.common.utils.StringUtils;
-import org.opensearch.flint.spark.ppl.legacy.ppl.utils.ArgumentFactory;
-import org.opensearch.flint.spark.ppl.legacy.ppl.utils.GeoIpCatalystLogicalPlanTranslator;
+import org.opensearch.flint.spark.ppl.legacy.utils.ArgumentFactory;
+import org.opensearch.flint.spark.ppl.legacy.utils.GeoIpCatalystLogicalPlanTranslator;
 
 import java.util.Arrays;
 import java.util.Collections;

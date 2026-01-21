@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.spark.ppl.legacy.ppl.utils;
+package org.opensearch.flint.spark.ppl.legacy.utils;
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.expressions.*;
@@ -11,8 +11,8 @@ import org.opensearch.flint.spark.ppl.legacy.ast.expression.*;
 import org.opensearch.flint.spark.ppl.legacy.ast.expression.Literal;
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.Trendline;
 import org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName;
-import org.opensearch.flint.spark.ppl.legacy.ppl.CatalystExpressionVisitor;
-import org.opensearch.flint.spark.ppl.legacy.ppl.CatalystPlanContext;
+import org.opensearch.flint.spark.ppl.legacy.CatalystExpressionVisitor;
+import org.opensearch.flint.spark.ppl.legacy.CatalystPlanContext;
 import scala.collection.mutable.Seq;
 import scala.Option;
 import scala.Tuple2;
@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.seq;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.seq;
 import static scala.Option.empty;
 import static scala.collection.JavaConverters.asScalaBufferConverter;
 

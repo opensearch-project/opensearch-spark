@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.spark.ppl.legacy.ppl.utils;
+package org.opensearch.flint.spark.ppl.legacy.utils;
 
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.expressions.Expression;
@@ -16,11 +16,11 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
 import org.apache.spark.sql.types.DataTypes;
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.Dedupe;
-import org.opensearch.flint.spark.ppl.legacy.ppl.CatalystExpressionVisitor;
-import org.opensearch.flint.spark.ppl.legacy.ppl.CatalystPlanContext;
+import org.opensearch.flint.spark.ppl.legacy.CatalystExpressionVisitor;
+import org.opensearch.flint.spark.ppl.legacy.CatalystPlanContext;
 import scala.collection.Seq;
 
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.seq;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.seq;
 
 public interface DedupeTransformer {
 

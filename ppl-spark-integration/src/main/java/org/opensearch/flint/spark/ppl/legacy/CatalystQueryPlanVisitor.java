@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.spark.ppl.legacy.ppl;
+package org.opensearch.flint.spark.ppl.legacy;
 
 import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
@@ -75,14 +75,14 @@ import org.opensearch.flint.spark.ppl.legacy.ast.tree.Trendline;
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.UnresolvedPlan;
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.Window;
 import org.opensearch.flint.spark.ppl.legacy.common.antlr.SyntaxCheckException;
-import org.opensearch.flint.spark.ppl.legacy.ppl.utils.AppendColCatalystUtils;
-import org.opensearch.flint.spark.ppl.legacy.ppl.utils.FieldSummaryTransformer;
-import org.opensearch.flint.spark.ppl.legacy.ppl.utils.GeoIpCatalystLogicalPlanTranslator;
-import org.opensearch.flint.spark.ppl.legacy.ppl.utils.ParseTransformer;
-import org.opensearch.flint.spark.ppl.legacy.ppl.utils.RelationUtils;
-import org.opensearch.flint.spark.ppl.legacy.ppl.utils.SortUtils;
-import org.opensearch.flint.spark.ppl.legacy.ppl.utils.TrendlineCatalystUtils;
-import org.opensearch.flint.spark.ppl.legacy.ppl.utils.WindowSpecTransformer;
+import org.opensearch.flint.spark.ppl.legacy.utils.AppendColCatalystUtils;
+import org.opensearch.flint.spark.ppl.legacy.utils.FieldSummaryTransformer;
+import org.opensearch.flint.spark.ppl.legacy.utils.GeoIpCatalystLogicalPlanTranslator;
+import org.opensearch.flint.spark.ppl.legacy.utils.ParseTransformer;
+import org.opensearch.flint.spark.ppl.legacy.utils.RelationUtils;
+import org.opensearch.flint.spark.ppl.legacy.utils.SortUtils;
+import org.opensearch.flint.spark.ppl.legacy.utils.TrendlineCatalystUtils;
+import org.opensearch.flint.spark.ppl.legacy.utils.WindowSpecTransformer;
 import scala.None$;
 import scala.Option;
 import scala.collection.IterableLike;
@@ -100,27 +100,27 @@ import java.util.stream.Stream;
 
 import static java.util.Collections.emptyList;
 import static java.util.List.of;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.AppendColCatalystUtils.TABLE_LHS;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.AppendColCatalystUtils.TABLE_RHS;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.AppendColCatalystUtils.appendRelationClause;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.AppendColCatalystUtils.combineQueriesWithJoin;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.AppendColCatalystUtils.getOverridedList;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.AppendColCatalystUtils.getRowNumStarProjection;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.AppendColCatalystUtils.isValidOverrideList;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.AppendColCatalystUtils.t1Attr;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.AppendColCatalystUtils.t2Attr;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.seq;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DedupeTransformer.retainMultipleDuplicateEvents;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DedupeTransformer.retainMultipleDuplicateEventsAndKeepEmpty;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DedupeTransformer.retainOneDuplicateEvent;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DedupeTransformer.retainOneDuplicateEventAndKeepEmpty;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.JoinSpecTransformer.join;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.LookupTransformer.buildFieldWithLookupSubqueryAlias;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.LookupTransformer.buildLookupMappingCondition;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.LookupTransformer.buildLookupRelationProjectList;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.LookupTransformer.buildOutputProjectList;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.LookupTransformer.buildProjectListFromFields;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.RelationUtils.getTableIdentifier;
+import static org.opensearch.flint.spark.ppl.legacy.utils.AppendColCatalystUtils.TABLE_LHS;
+import static org.opensearch.flint.spark.ppl.legacy.utils.AppendColCatalystUtils.TABLE_RHS;
+import static org.opensearch.flint.spark.ppl.legacy.utils.AppendColCatalystUtils.appendRelationClause;
+import static org.opensearch.flint.spark.ppl.legacy.utils.AppendColCatalystUtils.combineQueriesWithJoin;
+import static org.opensearch.flint.spark.ppl.legacy.utils.AppendColCatalystUtils.getOverridedList;
+import static org.opensearch.flint.spark.ppl.legacy.utils.AppendColCatalystUtils.getRowNumStarProjection;
+import static org.opensearch.flint.spark.ppl.legacy.utils.AppendColCatalystUtils.isValidOverrideList;
+import static org.opensearch.flint.spark.ppl.legacy.utils.AppendColCatalystUtils.t1Attr;
+import static org.opensearch.flint.spark.ppl.legacy.utils.AppendColCatalystUtils.t2Attr;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.seq;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DedupeTransformer.retainMultipleDuplicateEvents;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DedupeTransformer.retainMultipleDuplicateEventsAndKeepEmpty;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DedupeTransformer.retainOneDuplicateEvent;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DedupeTransformer.retainOneDuplicateEventAndKeepEmpty;
+import static org.opensearch.flint.spark.ppl.legacy.utils.JoinSpecTransformer.join;
+import static org.opensearch.flint.spark.ppl.legacy.utils.LookupTransformer.buildFieldWithLookupSubqueryAlias;
+import static org.opensearch.flint.spark.ppl.legacy.utils.LookupTransformer.buildLookupMappingCondition;
+import static org.opensearch.flint.spark.ppl.legacy.utils.LookupTransformer.buildLookupRelationProjectList;
+import static org.opensearch.flint.spark.ppl.legacy.utils.LookupTransformer.buildOutputProjectList;
+import static org.opensearch.flint.spark.ppl.legacy.utils.LookupTransformer.buildProjectListFromFields;
+import static org.opensearch.flint.spark.ppl.legacy.utils.RelationUtils.getTableIdentifier;
 import static scala.collection.JavaConverters.seqAsJavaList;
 
 /**

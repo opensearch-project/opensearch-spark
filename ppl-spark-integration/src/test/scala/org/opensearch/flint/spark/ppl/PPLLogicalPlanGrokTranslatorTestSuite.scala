@@ -9,8 +9,8 @@ import java.util
 import java.util.Map
 
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
+import org.opensearch.flint.spark.ppl.legacy.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.opensearch.flint.spark.ppl.legacy.common.grok.{Grok, GrokCompiler, Match}
-import org.opensearch.flint.spark.ppl.legacy.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite

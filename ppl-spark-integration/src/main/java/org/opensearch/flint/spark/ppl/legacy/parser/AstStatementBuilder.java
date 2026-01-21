@@ -6,7 +6,7 @@
  * compatible open source license.
  */
 
-package org.opensearch.flint.spark.ppl.legacy.ppl.parser;
+package org.opensearch.flint.spark.ppl.legacy.parser;
 
 import com.google.common.collect.ImmutableList;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;

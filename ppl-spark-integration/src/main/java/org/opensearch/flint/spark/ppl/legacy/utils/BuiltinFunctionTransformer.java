@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.spark.ppl.legacy.ppl.utils;
+package org.opensearch.flint.spark.ppl.legacy.utils;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.Optional;
@@ -91,7 +91,7 @@ import static org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinF
 import static org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.UTC_TIMESTAMP;
 import static org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.WEEK;
 import static org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.WEEK_OF_YEAR;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.seq;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.seq;
 import static scala.Option.empty;
 
 /**

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.spark.ppl.legacy.ppl.utils;
+package org.opensearch.flint.spark.ppl.legacy.utils;
 
 import org.apache.spark.sql.catalyst.AliasIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
@@ -31,7 +31,7 @@ import org.apache.spark.sql.types.DataTypes;
 import org.opensearch.flint.spark.ppl.legacy.ast.expression.Field;
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.FieldSummary;
 import org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName;
-import org.opensearch.flint.spark.ppl.legacy.ppl.CatalystPlanContext;
+import org.opensearch.flint.spark.ppl.legacy.CatalystPlanContext;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -48,7 +48,7 @@ import static org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinF
 import static org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.MIN;
 import static org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.STDDEV;
 import static org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.TYPEOF;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.seq;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.seq;
 import static scala.Option.empty;
 
 public interface FieldSummaryTransformer {

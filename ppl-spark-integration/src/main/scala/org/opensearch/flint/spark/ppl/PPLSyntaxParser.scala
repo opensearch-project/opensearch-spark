@@ -8,7 +8,7 @@ import org.antlr.v4.runtime.{CommonTokenStream, Lexer}
 import org.antlr.v4.runtime.tree.ParseTree
 import org.opensearch.flint.spark.ppl.legacy.ast.statement.Statement
 import org.opensearch.flint.spark.ppl.legacy.common.antlr.{CaseInsensitiveCharStream, Parser, SyntaxAnalysisErrorListener}
-import org.opensearch.flint.spark.ppl.legacy.ppl.parser.{AstBuilder, AstExpressionBuilder, AstStatementBuilder}
+import org.opensearch.flint.spark.ppl.legacy.parser.{AstBuilder, AstExpressionBuilder, AstStatementBuilder}
 
 class PPLSyntaxParser extends Parser {
   // Analyze the query syntax

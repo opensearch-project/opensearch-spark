@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.spark.ppl.legacy.ppl.utils;
+package org.opensearch.flint.spark.ppl.legacy.utils;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -26,7 +26,7 @@ import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.Join;
 import org.opensearch.flint.spark.ppl.legacy.expression.function.SerializableUdf;
-import org.opensearch.flint.spark.ppl.legacy.ppl.CatalystPlanContext;
+import org.opensearch.flint.spark.ppl.legacy.CatalystPlanContext;
 import scala.Option;
 
 import java.util.ArrayList;
@@ -40,8 +40,8 @@ import static java.util.List.of;
 
 import static org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.IP_TO_INT;
 import static org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.IS_IPV4;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.seq;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.JoinSpecTransformer.join;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.seq;
+import static org.opensearch.flint.spark.ppl.legacy.utils.JoinSpecTransformer.join;
 
 public interface GeoIpCatalystLogicalPlanTranslator {
     String SPARK_CONF_KEY = "spark.geoip.tablename";

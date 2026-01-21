@@ -2,7 +2,7 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.flint.spark.ppl.legacy.ppl.utils;
+package org.opensearch.flint.spark.ppl.legacy.utils;
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
@@ -25,7 +25,7 @@ import org.opensearch.flint.spark.ppl.legacy.ast.expression.UnresolvedExpression
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.Join;
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.Relation;
 import org.opensearch.flint.spark.ppl.legacy.ast.tree.UnresolvedPlan;
-import org.opensearch.flint.spark.ppl.legacy.ppl.CatalystPlanContext;
+import org.opensearch.flint.spark.ppl.legacy.CatalystPlanContext;
 import scala.Option;
 
 import java.util.ArrayList;
@@ -34,8 +34,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.DataTypeTransformer.seq;
-import static org.opensearch.flint.spark.ppl.legacy.ppl.utils.JoinSpecTransformer.join;
+import static org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.seq;
+import static org.opensearch.flint.spark.ppl.legacy.utils.JoinSpecTransformer.join;
 import static scala.collection.JavaConverters.seqAsJavaList;
 
 /**
