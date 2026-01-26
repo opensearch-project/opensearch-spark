@@ -44,6 +44,9 @@ publish_snapshots_and_update_metadata() {
   # Update maven-metadata.xml with commitId for each artifact
   echo "Updating maven-metadata.xml files with commit ID: ${commit_id}"
 
+  # Remove trailing slash from SNAPSHOT_REPO_URL if present
+  local repo_url="${SNAPSHOT_REPO_URL%/}"
+
   local artifacts=("opensearch-spark-standalone_2.12" "opensearch-spark-ppl_2.12" "opensearch-spark-sql-application_2.12")
 
   for artifact in "${artifacts[@]}"; do
@@ -53,7 +56,7 @@ publish_snapshots_and_update_metadata() {
     echo "Processing metadata for ${artifact}..."
 
     # Download current metadata from S3
-    if ! aws s3 cp "${SNAPSHOT_REPO_URL}/${metadata_s3_path}" "${local_metadata}"; then
+    if ! aws s3 cp "${repo_url}/${metadata_s3_path}" "${local_metadata}"; then
       echo "Warning: Could not download metadata for ${artifact}, skipping..."
       continue
     fi
@@ -75,7 +78,7 @@ publish_snapshots_and_update_metadata() {
     fi
 
     # Re-upload modified metadata
-    if ! aws s3 cp "${local_metadata}" "${SNAPSHOT_REPO_URL}/${metadata_s3_path}"; then
+    if ! aws s3 cp "${local_metadata}" "${repo_url}/${metadata_s3_path}"; then
       echo "Error: Failed to upload modified metadata for ${artifact}. Permission denied or path not writable."
       continue
     fi
@@ -84,10 +87,10 @@ publish_snapshots_and_update_metadata() {
     sha256sum "${local_metadata}" | awk '{print $1}' > "${local_metadata}.sha256"
     sha512sum "${local_metadata}" | awk '{print $1}' > "${local_metadata}.sha512"
 
-    if ! aws s3 cp "${local_metadata}.sha256" "${SNAPSHOT_REPO_URL}/${metadata_s3_path}.sha256"; then
+    if ! aws s3 cp "${local_metadata}.sha256" "${repo_url}/${metadata_s3_path}.sha256"; then
       echo "Warning: Failed to upload sha256 checksum for ${artifact}"
     fi
-    if ! aws s3 cp "${local_metadata}.sha512" "${SNAPSHOT_REPO_URL}/${metadata_s3_path}.sha512"; then
+    if ! aws s3 cp "${local_metadata}.sha512" "${repo_url}/${metadata_s3_path}.sha512"; then
       echo "Warning: Failed to upload sha512 checksum for ${artifact}"
     fi
 
