@@ -14,9 +14,6 @@ import org.apache.spark.sql.types._
 
 /**
  * Type conversions between Spark and Calcite type systems.
- *
- * Usage: {{{ import org.opensearch.flint.spark.query._ val calciteType =
- * sparkDataType.toCalcite(typeFactory) }}}
  */
 package object query {
 
@@ -24,22 +21,6 @@ package object query {
    * Spark DataType to Calcite RelDataType conversion with nullability support.
    */
   implicit class SparkTypeOps(val sparkType: DataType) extends AnyVal {
-
-    /**
-     * Helper to apply nullability to a Calcite type. For struct types, we must use
-     * enforceTypeWithNullability because createTypeWithNullability pushes nullability down to
-     * fields instead of making the struct itself nullable.
-     */
-    private def withNullability(
-        typeFactory: RelDataTypeFactory,
-        calciteType: RelDataType,
-        nullable: Boolean): RelDataType = {
-      if (calciteType.isStruct) {
-        typeFactory.enforceTypeWithNullability(calciteType, nullable)
-      } else {
-        typeFactory.createTypeWithNullability(calciteType, nullable)
-      }
-    }
 
     def toCalcite(typeFactory: RelDataTypeFactory): RelDataType = sparkType match {
       case BooleanType => typeFactory.createSqlType(SqlTypeName.BOOLEAN)
@@ -127,6 +108,22 @@ package object query {
 
       // Default fallback for unsupported types (CalendarIntervalType, ObjectType, etc.)
       case _ => typeFactory.createSqlType(SqlTypeName.ANY)
+    }
+  }
+
+  /**
+   * Helper to apply nullability to a Calcite type. For struct types, we must use
+   * enforceTypeWithNullability because createTypeWithNullability pushes nullability down to
+   * fields instead of making the struct itself nullable.
+   */
+  private def withNullability(
+      typeFactory: RelDataTypeFactory,
+      calciteType: RelDataType,
+      nullable: Boolean): RelDataType = {
+    if (calciteType.isStruct) {
+      typeFactory.enforceTypeWithNullability(calciteType, nullable)
+    } else {
+      typeFactory.createTypeWithNullability(calciteType, nullable)
     }
   }
 }
