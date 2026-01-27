@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark.query
 
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar
@@ -24,8 +25,39 @@ class SparkSchemaSuite extends SparkFunSuite with Matchers with MockitoSugar {
   private val testDb = "db"
   private val testTable = "table"
 
+  test("getSubSchema for any database") {
+    withMockTable(None) { spark =>
+      val sparkSchema = new SparkSchema(spark, testCatalog)
+      val subSchema = sparkSchema.subSchemas().get("any_db")
+
+      subSchema should not be null
+    }
+  }
+
+  test("getTable for existing table") {
+    withMockTable(Some("id INT")) { spark =>
+      val sparkSchema = new SparkSchema(spark, testCatalog)
+      val subSchema = sparkSchema.subSchemas().get(testDb)
+      val table = subSchema.tables().get(testTable)
+
+      table should not be null
+      table.getRowType(typeFactory) should not be null
+    }
+  }
+
+  test("getTable for non-existent table") {
+    withMockTable(None) { spark =>
+      val sparkSchema = new SparkSchema(spark, testCatalog)
+      val subSchema = sparkSchema.subSchemas().get(testDb)
+
+      the[RuntimeException] thrownBy {
+        subSchema.tables().get("non_existent")
+      }
+    }
+  }
+
   test("primitive types") {
-    withMockTable("""
+    withMockTable(Some("""
         bool_col BOOLEAN,
         byte_col BYTE,
         short_col SHORT,
@@ -38,10 +70,11 @@ class SparkSchemaSuite extends SparkFunSuite with Matchers with MockitoSugar {
         binary_col BINARY,
         date_col DATE,
         timestamp_col TIMESTAMP
-      """) { spark =>
+      """)) { spark =>
       val sparkSchema = new SparkSchema(spark, testCatalog)
-      val rowType = sparkSchema.getSubSchema(testDb).getTable(testTable).getRowType(typeFactory)
-      rowType.toString shouldBe
+      val table = sparkSchema.subSchemas().get(testDb).tables().get(testTable)
+
+      table.getRowType(typeFactory).toString shouldBe
         "RecordType(" +
         "BOOLEAN bool_col, " +
         "TINYINT byte_col, " +
@@ -59,14 +92,15 @@ class SparkSchemaSuite extends SparkFunSuite with Matchers with MockitoSugar {
   }
 
   test("complex types") {
-    withMockTable("""
+    withMockTable(Some("""
         array_col ARRAY<INT>,
         map_col MAP<STRING, INT>,
         struct_col STRUCT<name: STRING, age: INT>
-      """) { spark =>
+      """)) { spark =>
       val sparkSchema = new SparkSchema(spark, testCatalog)
-      val rowType = sparkSchema.getSubSchema(testDb).getTable(testTable).getRowType(typeFactory)
-      rowType.toString shouldBe
+      val table = sparkSchema.subSchemas().get(testDb).tables().get(testTable)
+
+      table.getRowType(typeFactory).toString shouldBe
         "RecordType(" +
         "INTEGER ARRAY array_col, " +
         "(VARCHAR, INTEGER) MAP map_col, " +
@@ -75,24 +109,30 @@ class SparkSchemaSuite extends SparkFunSuite with Matchers with MockitoSugar {
   }
 
   test("nested complex types") {
-    withMockTable("""
+    withMockTable(Some("""
         nested_array ARRAY<STRUCT<id: INT, values: ARRAY<STRING>>>,
         nested_struct STRUCT<info: STRUCT<name: STRING, tags: ARRAY<STRING>>>
-      """) { spark =>
+      """)) { spark =>
       val sparkSchema = new SparkSchema(spark, testCatalog)
-      val rowType = sparkSchema.getSubSchema(testDb).getTable(testTable).getRowType(typeFactory)
-      rowType.toString shouldBe
+      val table = sparkSchema.subSchemas().get(testDb).tables().get(testTable)
+
+      table.getRowType(typeFactory).toString shouldBe
         "RecordType(" +
         "RecordType(INTEGER id, VARCHAR ARRAY values) ARRAY nested_array, " +
         "RecordType(RecordType(VARCHAR name, VARCHAR ARRAY tags) info) nested_struct)"
     }
   }
 
-  private def withMockTable(ddl: String)(f: SparkSession => Unit): Unit = {
+  private def withMockTable(ddl: Option[String])(f: SparkSession => Unit): Unit = {
     val spark = mock[SparkSession]
-    val df = mock[DataFrame]
-    when(df.schema).thenReturn(StructType.fromDDL(ddl))
-    when(spark.table(s"$testCatalog.$testDb.$testTable")).thenReturn(df)
+    ddl match {
+      case Some(schema) =>
+        val table = mock[DataFrame]
+        when(table.schema).thenReturn(StructType.fromDDL(schema))
+        when(spark.table(s"$testCatalog.$testDb.$testTable")).thenReturn(table)
+      case None =>
+        when(spark.table(any[String])).thenThrow(new RuntimeException("Table not found"))
+    }
     f(spark)
   }
 }

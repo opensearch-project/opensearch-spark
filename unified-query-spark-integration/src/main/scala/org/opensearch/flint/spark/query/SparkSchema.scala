@@ -36,15 +36,17 @@ class SparkSchema(spark: SparkSession, catalogName: String) extends AbstractSche
 
   private def buildSubSchema(dbName: String): Schema = new AbstractSchema() {
     override def getTableMap: util.Map[String, Table] =
-      new LazyMap[String, Table](tableName => buildTable(dbName, tableName))
+      new LazyMap[String, Table](tableName => buildCalciteTable(dbName, tableName))
   }
 
-  private def buildTable(dbName: String, tableName: String): Table =
+  private def buildCalciteTable(dbName: String, tableName: String): Table = {
+    val sparkTable = spark.table(s"$catalogName.$dbName.$tableName")
     new AbstractTable {
       override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
-        spark.table(s"$catalogName.$dbName.$tableName").schema.toCalcite(typeFactory)
+        sparkTable.schema.toCalcite(typeFactory)
       }
     }
+  }
 
   /**
    * A read-only map that computes values on demand using the provided function. This enables lazy
