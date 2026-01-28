@@ -73,6 +73,34 @@ class UnifiedQuerySparkParserSpec
     }
   }
 
+  describe("multi-catalog query resolution") {
+    it("should resolve queries with non-default catalog name") {
+      when(spark.sessionState.catalogManager.listCatalogs(None))
+        .thenReturn(Seq("iceberg_catalog"))
+      when(spark.catalog.currentCatalog).thenReturn("iceberg_catalog")
+      when(spark.catalog.currentDatabase).thenReturn("analytics")
+
+      val customParser = UnifiedQuerySparkParser(spark, sparkParser)
+      val expectedSql = "SELECT *\nFROM `iceberg_catalog`.`analytics`.`events`"
+      when(sparkParser.parsePlan(expectedSql)).thenReturn(mockPlan)
+
+      customParser.parsePlan("source=iceberg_catalog.analytics.events") shouldBe mockPlan
+      verify(sparkParser).parsePlan(expectedSql)
+    }
+
+    it("should resolve queries across multiple registered catalogs") {
+      when(spark.sessionState.catalogManager.listCatalogs(None))
+        .thenReturn(Seq("spark_catalog", "iceberg_catalog", "delta_catalog"))
+
+      val multiParser = UnifiedQuerySparkParser(spark, sparkParser)
+      val expectedSql = "SELECT *\nFROM `iceberg_catalog`.`warehouse`.`orders`"
+      when(sparkParser.parsePlan(expectedSql)).thenReturn(mockPlan)
+
+      multiParser.parsePlan("source=iceberg_catalog.warehouse.orders") shouldBe mockPlan
+      verify(sparkParser).parsePlan(expectedSql)
+    }
+  }
+
   describe("delegated methods") {
     it("should delegate parseExpression to Spark parser") {
       val expr = Literal(1)
@@ -111,6 +139,13 @@ class UnifiedQuerySparkParserSpec
 
       parser.parseTableSchema("schema") shouldBe testSchema
       verify(sparkParser).parseTableSchema("schema")
+    }
+
+    it("should delegate parseDataType to Spark parser") {
+      when(sparkParser.parseDataType("INT")).thenReturn(IntegerType)
+
+      parser.parseDataType("INT") shouldBe IntegerType
+      verify(sparkParser).parseDataType("INT")
     }
 
     it("should delegate parseQuery to Spark parser") {

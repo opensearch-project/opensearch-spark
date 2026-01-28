@@ -24,21 +24,17 @@ import org.apache.spark.sql.types.{DataType, StructType}
  * Planner. It converts unified queries into Spark SQL queries for execution, and falls back to
  * the default Spark parser when the input query is not supported.
  *
- * This parser leverages the UnifiedQueryContext, UnifiedQueryPlanner, and UnifiedQueryTranspiler
- * APIs from the unified query library, which provide a centralized configuration approach for
- * query planning and transpilation.
- *
  * @param context
- *   The pre-built UnifiedQueryContext with catalog and namespace configuration
+ *   The UnifiedQueryContext (by-name parameter for lazy evaluation)
  * @param sparkParser
  *   The underlying Spark SQL parser to delegate non-PPL queries
  */
-class UnifiedQuerySparkParser(context: UnifiedQueryContext, sparkParser: ParserInterface)
+class UnifiedQuerySparkParser(context: => UnifiedQueryContext, sparkParser: ParserInterface)
     extends ParserInterface
     with Logging {
 
-  /** Planner that converts PPL queries to unified logical plans. */
-  private val unifiedQueryPlanner = new UnifiedQueryPlanner(context)
+  /** Lazily initialized planner that converts PPL queries to unified logical plans. */
+  private lazy val unifiedQueryPlanner = new UnifiedQueryPlanner(context)
 
   /** Transpiler that converts unified plan to Spark SQL using Spark SQL dialect. */
   private val sparkSqlTranspiler = UnifiedQueryTranspiler
@@ -47,9 +43,7 @@ class UnifiedQuerySparkParser(context: UnifiedQueryContext, sparkParser: ParserI
     .build()
 
   /**
-   * Parses a query string into a Spark LogicalPlan.
-   *
-   * Attempts to parse as PPL and transpile to Spark SQL. If parsing fails with a
+   * Parses a query string into a Spark LogicalPlan. Attempts to parse as PPL and transpile to Spark SQL. If parsing fails with a
    * SyntaxCheckException, delegates to the underlying Spark parser.
    *
    * @param query
@@ -108,6 +102,10 @@ object UnifiedQuerySparkParser {
    *   UnifiedQuerySparkParser instance
    */
   def apply(spark: SparkSession, sparkParser: ParserInterface): UnifiedQuerySparkParser = {
+    new UnifiedQuerySparkParser(buildContext(spark), sparkParser)
+  }
+
+  private def buildContext(spark: SparkSession): UnifiedQueryContext = {
     val currentCatalog = spark.catalog.currentCatalog
     val currentDatabase = spark.catalog.currentDatabase
     val builder =
@@ -122,6 +120,6 @@ object UnifiedQuerySparkParser {
       .foreach(catalogName => {
         builder.catalog(catalogName, new SparkSchema(spark, catalogName))
       })
-    new UnifiedQuerySparkParser(builder.build(), sparkParser)
+    builder.build()
   }
 }
