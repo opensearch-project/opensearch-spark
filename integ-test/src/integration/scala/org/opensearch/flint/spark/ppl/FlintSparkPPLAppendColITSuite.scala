@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.opensearch.sql.ppl.utils.SortUtils
+import org.opensearch.flint.spark.ppl.legacy.utils.SortUtils
 
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}

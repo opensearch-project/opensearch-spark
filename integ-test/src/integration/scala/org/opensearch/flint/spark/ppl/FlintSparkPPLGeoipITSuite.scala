@@ -7,10 +7,10 @@ package org.opensearch.flint.spark.ppl
 
 import java.util
 
-import org.opensearch.sql.expression.function.BuiltinFunctionName.IP_TO_INT
-import org.opensearch.sql.expression.function.BuiltinFunctionName.IS_IPV4
-import org.opensearch.sql.expression.function.SerializableUdf.visit
-import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
+import org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.IP_TO_INT
+import org.opensearch.flint.spark.ppl.legacy.expression.function.BuiltinFunctionName.IS_IPV4
+import org.opensearch.flint.spark.ppl.legacy.expression.function.SerializableUdf.visit
+import org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.seq
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.{QueryTest, Row}

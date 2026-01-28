@@ -1,0 +1,37 @@
+/*
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package org.opensearch.flint.spark.ppl.legacy.ast.expression;
+
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+import org.opensearch.flint.spark.ppl.legacy.ast.AbstractNodeVisitor;
+import org.opensearch.flint.spark.ppl.legacy.ast.Node;
+
+import java.util.Collections;
+import java.util.List;
+
+/** Represent the All fields which is been used in SELECT *. */
+@ToString
+@EqualsAndHashCode(callSuper = false)
+public class AllFields extends UnresolvedExpression {
+  public static final AllFields INSTANCE = new AllFields();
+
+  private AllFields() {}
+
+  public static AllFields of() {
+    return INSTANCE;
+  }
+
+  @Override
+  public List<? extends Node> getChild() {
+    return Collections.emptyList();
+  }
+
+  @Override
+  public <R, C> R accept(AbstractNodeVisitor<R, C> nodeVisitor, C context) {
+    return nodeVisitor.visitAllFields(this, context);
+  }
+}

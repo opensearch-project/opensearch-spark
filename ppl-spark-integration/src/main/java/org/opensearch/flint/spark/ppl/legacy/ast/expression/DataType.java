@@ -1,0 +1,37 @@
+/*
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package org.opensearch.flint.spark.ppl.legacy.ast.expression;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import org.opensearch.flint.spark.ppl.legacy.data.type.ExprCoreType;
+
+/** The DataType definition in AST. Question, could we use {@link ExprCoreType} directly in AST? */
+
+@RequiredArgsConstructor
+public enum DataType {
+  TYPE_ERROR(ExprCoreType.UNKNOWN),
+  NULL(ExprCoreType.UNDEFINED),
+
+  INTEGER(ExprCoreType.INTEGER),
+  LONG(ExprCoreType.LONG),
+  SHORT(ExprCoreType.SHORT),
+  FLOAT(ExprCoreType.FLOAT),
+  DOUBLE(ExprCoreType.DOUBLE),
+  STRING(ExprCoreType.STRING),
+  BOOLEAN(ExprCoreType.BOOLEAN),
+
+  DATE(ExprCoreType.DATE),
+  TIME(ExprCoreType.TIME),
+  TIMESTAMP(ExprCoreType.TIMESTAMP),
+  INTERVAL(ExprCoreType.INTERVAL);
+
+  @Getter private final  ExprCoreType coreType;
+
+  public static DataType fromString(String name) {
+    return valueOf(name.toUpperCase());
+  }
+}

@@ -4,7 +4,7 @@
  */
 package org.opensearch.flint.spark.ppl
 
-import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
+import org.opensearch.flint.spark.ppl.legacy.utils.DataTypeTransformer.seq
 
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}

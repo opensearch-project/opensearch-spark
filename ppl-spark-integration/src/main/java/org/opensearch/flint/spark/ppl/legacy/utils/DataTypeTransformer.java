@@ -1,0 +1,128 @@
+/*
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package org.opensearch.flint.spark.ppl.legacy.utils;
+
+
+import org.apache.spark.sql.types.BooleanType$;
+import org.apache.spark.sql.types.ByteType$;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.DateType$;
+import org.apache.spark.sql.types.DoubleType$;
+import org.apache.spark.sql.types.FloatType$;
+import org.apache.spark.sql.types.IntegerType$;
+import org.apache.spark.sql.types.LongType$;
+import org.apache.spark.sql.types.NullType$;
+import org.apache.spark.sql.types.ShortType$;
+import org.apache.spark.sql.types.StringType$;
+import org.apache.spark.unsafe.types.UTF8String;
+import org.opensearch.flint.spark.ppl.legacy.ast.expression.SpanUnit;
+import scala.collection.mutable.Seq;
+
+import java.util.List;
+
+import static org.opensearch.flint.spark.ppl.legacy.ast.expression.SpanUnit.DAY;
+import static org.opensearch.flint.spark.ppl.legacy.ast.expression.SpanUnit.HOUR;
+import static org.opensearch.flint.spark.ppl.legacy.ast.expression.SpanUnit.MILLISECOND;
+import static org.opensearch.flint.spark.ppl.legacy.ast.expression.SpanUnit.MINUTE;
+import static org.opensearch.flint.spark.ppl.legacy.ast.expression.SpanUnit.MONTH;
+import static org.opensearch.flint.spark.ppl.legacy.ast.expression.SpanUnit.NONE;
+import static org.opensearch.flint.spark.ppl.legacy.ast.expression.SpanUnit.QUARTER;
+import static org.opensearch.flint.spark.ppl.legacy.ast.expression.SpanUnit.SECOND;
+import static org.opensearch.flint.spark.ppl.legacy.ast.expression.SpanUnit.WEEK;
+import static org.opensearch.flint.spark.ppl.legacy.ast.expression.SpanUnit.YEAR;
+import static scala.collection.JavaConverters.asScalaBufferConverter;
+
+/**
+ * translate the PPL ast expressions data-types into catalyst data-types 
+ */
+public interface DataTypeTransformer {
+    static <T> Seq<T> seq(T... elements) {
+        return seq(List.of(elements));
+    }
+    
+    static <T> Seq<T> seq(List<T> list) {
+        return asScalaBufferConverter(list).asScala().seq();
+    }
+    
+    static DataType translate(org.opensearch.flint.spark.ppl.legacy.ast.expression.DataType source) {
+        switch (source.getCoreType()) {
+            case DATE:
+                return DateType$.MODULE$;
+            case TIMESTAMP:
+                return DataTypes.TimestampType;
+            case STRING:
+                return DataTypes.StringType;
+            case INTEGER:
+                return IntegerType$.MODULE$;
+            case LONG:
+                return LongType$.MODULE$;
+            case DOUBLE:
+                return DoubleType$.MODULE$;
+            case FLOAT:
+                return FloatType$.MODULE$;
+            case BOOLEAN:
+                return BooleanType$.MODULE$;
+            case SHORT:
+                return ShortType$.MODULE$;
+            case BYTE:
+                return ByteType$.MODULE$;
+            case UNDEFINED:
+                return NullType$.MODULE$;
+            default:
+                throw new IllegalArgumentException("Unsupported data type for Spark: " + source);
+        }
+    }
+    
+    static Object translate(Object value, org.opensearch.flint.spark.ppl.legacy.ast.expression.DataType source) {
+        switch (source.getCoreType()) {
+            case STRING:
+                /* The regex ^'(.*)'$ matches strings that start and end with a single quote. The content inside the quotes is captured using the (.*).
+                 * The $1 in the replaceAll method refers to the first captured group, which is the content inside the quotes. 
+                 * If the string matches the pattern, the content inside the quotes is returned; otherwise, the original string is returned.
+                 */
+                return UTF8String.fromString(value.toString().replaceAll("^'(.*)'$", "$1"));
+            default:
+                return value;
+        }
+    }
+    
+    static String translate(SpanUnit unit) {
+        switch (unit) {
+            case UNKNOWN:
+            case NONE:
+                return NONE.name();
+            case MILLISECOND:
+            case MS:
+                return MILLISECOND.name();
+            case SECOND:
+            case S:
+                return SECOND.name();
+            case MINUTE:
+            case m:
+                return MINUTE.name();
+            case HOUR:
+            case H:
+                return HOUR.name();
+            case DAY:
+            case D:
+                return DAY.name();
+            case WEEK:
+            case W:
+                return WEEK.name();
+            case MONTH:
+            case M:
+                return MONTH.name();
+            case QUARTER:
+            case Q:
+                return QUARTER.name();
+            case YEAR:
+            case Y:
+                return YEAR.name();
+        }
+        return "";
+    }
+}
