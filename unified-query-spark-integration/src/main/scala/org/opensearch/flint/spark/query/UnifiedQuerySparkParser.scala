@@ -48,7 +48,7 @@ class UnifiedQuerySparkParser(context: => UnifiedQueryContext, sparkParser: Pars
    * parser.
    *
    * @param query
-   *   The query string (PPL or SQL)
+   *   The query string
    * @return
    *   Spark LogicalPlan
    */
@@ -105,6 +105,7 @@ object UnifiedQuerySparkParser {
   }
 
   private def buildContext(spark: SparkSession): UnifiedQueryContext = {
+    // Currently only PPL is supported, so the configuration below are PPL-specific
     val currentCatalog = spark.catalog.currentCatalog
     val currentDatabase = spark.catalog.currentDatabase
     val builder =
@@ -112,6 +113,10 @@ object UnifiedQuerySparkParser {
         .builder()
         .language(QueryType.PPL)
         .defaultNamespace(s"$currentCatalog.$currentDatabase")
+        // Enable unrestricted query capabilities for now
+        .setting("plugins.calcite.all_join_types.allowed", true)
+        .setting("plugins.ppl.subsearch.maxout", 0)
+        .setting("plugins.ppl.join.subsearch_maxout", 0)
 
     // Register all available catalogs
     spark.sessionState.catalogManager
@@ -119,12 +124,6 @@ object UnifiedQuerySparkParser {
       .foreach(catalogName => {
         builder.catalog(catalogName, new SparkSchema(spark, catalogName))
       })
-
-    // Enable unrestricted query capabilities for now
-    builder
-      .setting("plugins.calcite.all_join_types.allowed", true)
-      .setting("plugins.ppl.subsearch.maxout", 0)
-      .setting("plugins.ppl.join.subsearch_maxout", 0)
-      .build()
+    builder.build()
   }
 }

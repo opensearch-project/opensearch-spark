@@ -16,7 +16,12 @@ import org.apache.spark.sql.SparkSession
 /**
  * Implements Calcite's Schema interface by bridging Spark SQL catalogs and tables.
  *
- * Schema hierarchy: SparkSchema (catalog) -> SubSchema (database) -> Table
+ * Schema hierarchy mirrors Spark's catalog structure:
+ * {{{
+ *   SparkSchema (catalog)
+ *       +-- SubSchema (database) - dynamic, no existence validation
+ *               +-- Table
+ * }}}
  *
  * @param spark
  *   The current SparkSession
@@ -25,12 +30,6 @@ import org.apache.spark.sql.SparkSession
  */
 class SparkSchema(spark: SparkSession, catalogName: String) extends AbstractSchema {
 
-  /**
-   * Returns sub-schemas (databases) within this catalog as a lazy map.
-   *
-   * @return
-   *   Map of database names to Schema objects
-   */
   override protected def getSubSchemaMap: util.Map[String, Schema] =
     new LazyMap[String, Schema](dbName => buildSubSchema(dbName))
 
@@ -48,20 +47,11 @@ class SparkSchema(spark: SparkSession, catalogName: String) extends AbstractSche
     }
   }
 
-  /**
-   * A read-only map that computes values on demand using the provided function. This enables lazy
-   * loading of sub-schemas and tables without querying the catalog upfront.
-   *
-   * @param valueFn
-   *   function that computes the value for a given key
-   * @tparam K
-   *   key type
-   * @tparam V
-   *   value type
-   */
+  /** A read-only map that computes values on demand using the provided function. */
   private class LazyMap[K, V](valueFn: K => V) extends util.AbstractMap[K, V] {
     override def get(key: Any): V = valueFn(key.asInstanceOf[K])
 
+    // Returns empty set as iteration is not supported and Calcite only uses get() lookups
     override def entrySet(): util.Set[util.Map.Entry[K, V]] = util.Collections.emptySet()
   }
 }
