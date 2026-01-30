@@ -1,49 +1,85 @@
 # Unified Query Spark Integration
 
-This module provides the integration layer between the [unified-query-api](https://ci.opensearch.org/ci/dbc/snapshots/maven/) Calcite-based PPL engine and Apache Spark. It enables consistent PPL (Piped Processing Language) query behavior across OpenSearch and Spark by leveraging the Calcite-based PPL parser and transpiler.
+This module provides the integration layer between the Calcite-based unified query engine and Apache Spark. It enables consistent query behavior across OpenSearch and Spark by leveraging the unified query parser and transpiler.
 
 ## Overview
 
-The unified-query-spark-integration module bridges the gap between OpenSearch's Calcite-based PPL engine and Spark's execution environment. It provides:
+The unified-query-spark-integration module bridges the gap between OpenSearch's Calcite-based unified query engine and Spark's execution environment. It provides:
 
-- **UnifiedQuerySparkParser**: A custom Spark SQL parser that routes PPL queries through the Calcite engine for transpilation to Spark SQL
+- **UnifiedQuerySparkParser**: A custom Spark SQL parser that routes queries through the Calcite engine for transpilation to Spark SQL
 - **SparkSchema**: Implements Calcite's Schema interface by bridging Spark SQL catalogs and tables
 
 ## Architecture
 
 ```
-PPL Query → UnifiedQuerySparkParser → UnifiedQueryPlanner → Calcite RelNode 
-         → UnifiedQueryTranspiler (OpenSearchSparkSqlDialect) → Spark SQL 
-         → Spark Parser → LogicalPlan → Execution
+┌─────────────────────────────────┬──────────────────────────────────────┬─────────────────────────────────┐
+│ Spark SQL                       │ Unified Query Integration            │ Unified Query API               │
+├─────────────────────────────────┼──────────────────────────────────────┼─────────────────────────────────┤
+│ spark.sql("<query text>")       │                                      │                                 │
+│            │                    │                                      │                                 │
+│            ├───────────────────►│ UnifiedQuerySparkParser              │                                 │
+│            │                    │           │                          │                                 │
+│            │                    │           ├────── query text ───────►│   UnifiedQueryPlanner           │
+│            │                    │           │                          │           │                     │
+│            │                    │           │                          │           ▼                     │
+│            │                    │           │                          │     Calcite RelNode             │
+│            │                    │           │                          │           │                     │
+│            │                    │           │                          │           ▼                     │
+│            │                    │           │                          │  UnifiedQueryTranspiler         │
+│            │                    │           │                          │           │                     │
+│            │◄──────────────────────────────────── Spark SQL text ──────┘───────────┘                     │
+│            ▼                    │                                      │                                 │
+│ Spark built-in SQL parser       │                                      │                                 │
+│            │                    │                                      │                                 │
+│            ▼                    │                                      │                                 │
+│      LogicalPlan                │                                      │                                 │
+│            │                    │                                      │                                 │
+│            ▼                    │                                      │                                 │
+│        Execute                  │                                      │                                 │
+└─────────────────────────────────┴──────────────────────────────────────┴─────────────────────────────────┘
 ```
 
-When a PPL query is submitted:
+When a query is submitted:
 1. `UnifiedQuerySparkParser.parsePlan()` receives the query
-2. `UnifiedQueryPlanner` parses the PPL and creates a Calcite RelNode (logical plan)
+2. `UnifiedQueryPlanner` parses the query and creates a Calcite RelNode (unified logical plan)
 3. `UnifiedQueryTranspiler` converts the RelNode to Spark SQL using `OpenSearchSparkSqlDialect`
 4. The generated SQL is passed to Spark's native parser for execution
-5. If parsing fails (non-PPL query), it falls back to the underlying Spark parser
+5. If parsing fails (unsupported query), it falls back to the underlying Spark parser
 
-## Key Components
+#### Type Mapping
 
-### UnifiedQuerySparkParser
+The following table shows how Spark SQL types are mapped to Unified Query types for query processing:
 
-A custom `ParserInterface` implementation that:
-- Intercepts query parsing in Spark
-- Attempts PPL transpilation via the unified query planner
-- Falls back to Spark's native parser for non-PPL queries (SQL, DDL, etc.)
-
-### SparkSchema
-
-Implements Calcite's `Schema` interface to expose Spark's catalog system:
-- Maps Spark catalogs to Calcite schemas
-- Provides lazy loading of databases and tables
-- Converts Spark table schemas to Calcite row types
+| Spark SQL Type | Unified Query Type | Notes |
+|----------------|--------------|-------|
+| `BooleanType` | `BOOLEAN` | |
+| `ByteType` | `TINYINT` | |
+| `ShortType` | `SMALLINT` | |
+| `IntegerType` | `INTEGER` | |
+| `LongType` | `BIGINT` | |
+| `FloatType` | `REAL` | 4-byte single-precision |
+| `DoubleType` | `DOUBLE` | |
+| `DecimalType(p, s)` | `DECIMAL(p, s)` | Preserves precision and scale |
+| `StringType` | `VARCHAR` | |
+| `VarcharType(n)` | `VARCHAR(n)` | Preserves length |
+| `CharType(n)` | `CHAR(n)` | Preserves length |
+| `BinaryType` | `VARBINARY` | |
+| `DateType` | `DATE` | |
+| `TimestampType` | `TIMESTAMP_WITH_LOCAL_TIME_ZONE` | Timestamp with timezone |
+| `TimestampNTZType` | `TIMESTAMP` | Timestamp without timezone |
+| `ArrayType(T, nullable)` | `T ARRAY` | Preserves element nullability |
+| `MapType(K, V, nullable)` | `(K, V) MAP` | Preserves value nullability |
+| `StructType` | `RecordType` | Preserves field names and nullability |
+| `NullType` | `NULL` | |
+| `DayTimeIntervalType` | `INTERVAL_DAY*` | Maps to appropriate day-time interval |
+| `YearMonthIntervalType` | `INTERVAL_YEAR*` | Maps to appropriate year-month interval |
+| `UserDefinedType` | Delegates to `sqlType` | Unwraps to underlying SQL type |
+| Unsupported types | `ANY` | Fallback for CalendarIntervalType, ObjectType, etc. |
 
 ## Dependencies
 
 This module depends on:
-- `unified-query-api`: OpenSearch's Calcite-based PPL engine (from OpenSearch SQL project)
+- `unified-query-api`: OpenSearch's Calcite-based unified query engine (from OpenSearch SQL project)
 - Apache Spark SQL (provided)
 - Apache Calcite (transitive via unified-query-api)
 
@@ -63,12 +99,11 @@ sbt unifiedQuerySparkIntegration/test
 
 ## Related Documentation
 
-- [PPL Language Reference](../docs/ppl-lang/README.md)
 - [PPL on Spark Architecture](../docs/ppl-lang/PPL-on-Spark.md)
 
 ## GitHub Reference
 
-- [opensearch-spark#1203](https://github.com/opensearch-project/opensearch-spark/issues/1203) - PPL-Calcite Spark Unification
+- [opensearch-spark#1136](https://github.com/opensearch-project/opensearch-spark/issues/1136) - Unified Query Spark Integration
 
 ## License
 

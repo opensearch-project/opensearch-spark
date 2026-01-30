@@ -112,9 +112,8 @@ package object query {
   }
 
   /**
-   * Helper to apply nullability to a Calcite type. For struct types, we must use
-   * enforceTypeWithNullability because createTypeWithNullability pushes nullability down to
-   * fields instead of making the struct itself nullable.
+   * Applies nullability to a Calcite type. Struct types require enforceTypeWithNullability to
+   * make the struct itself nullable rather than pushing nullability to fields.
    */
   private def withNullability(
       typeFactory: RelDataTypeFactory,

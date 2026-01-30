@@ -182,6 +182,7 @@ lazy val flintCommons = (project in file("flint-commons"))
   .enablePlugins(AssemblyPlugin)
 
 lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
+  .dependsOn(unifiedQuerySparkIntegration)
   .enablePlugins(AssemblyPlugin, Antlr4Plugin)
   .settings(
     commonSettings,
@@ -320,6 +321,7 @@ lazy val unifiedQuerySparkIntegration = (project in file("unified-query-spark-in
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
       "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
+      "org.mockito" %% "mockito-scala" % "1.16.42" % "test",
       "com.github.sbt" % "junit-interface" % "0.13.3" % "test",
       // unified-query-api dependency from OpenSearch SQL project
       "org.opensearch.query" % "unified-query-api" % "2.19.4.0-SNAPSHOT"
@@ -328,7 +330,12 @@ lazy val unifiedQuerySparkIntegration = (project in file("unified-query-spark-in
           ExclusionRule(organization = "com.fasterxml.jackson.dataformat"),
           ExclusionRule(organization = "com.fasterxml.jackson.module"),
           ExclusionRule(organization = "com.fasterxml.jackson.jaxrs"),
-          ExclusionRule(organization = "org.opensearch"))
+          ExclusionRule(organization = "org.opensearch"),
+          ExclusionRule(organization = "com.squareup.okhttp3"),
+          ExclusionRule(organization = "com.amazonaws"),
+          ExclusionRule(organization = "com.github.babbel"),
+          ExclusionRule(organization = "org.apache.logging.log4j"),
+          ExclusionRule(organization = "org.slf4j"))
         exclude("org.opensearch.query", "unified-query-protocol")),
     libraryDependencies ++= deps(sparkVersion),
     publish / skip := true,

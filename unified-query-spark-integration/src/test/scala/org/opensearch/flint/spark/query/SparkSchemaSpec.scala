@@ -15,9 +15,6 @@ import org.scalatestplus.mockito.MockitoSugar
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.types._
 
-/**
- * Test suite for SparkSchema that verifies Spark catalog to Calcite schema mapping.
- */
 class SparkSchemaSpec extends AnyFunSpec with Matchers with MockitoSugar {
 
   private val typeFactory = new JavaTypeFactoryImpl()
@@ -27,7 +24,7 @@ class SparkSchemaSpec extends AnyFunSpec with Matchers with MockitoSugar {
 
   describe("schema navigation") {
     it("should return subSchema for any database") {
-      withMockTable(None) { spark =>
+      withTableSchema(None) { spark =>
         val sparkSchema = new SparkSchema(spark, testCatalog)
         val subSchema = sparkSchema.subSchemas().get("any_db")
 
@@ -36,7 +33,7 @@ class SparkSchemaSpec extends AnyFunSpec with Matchers with MockitoSugar {
     }
 
     it("should return table for existing table") {
-      withMockTable("id INT") { spark =>
+      withTableSchema("id INT") { spark =>
         val sparkSchema = new SparkSchema(spark, testCatalog)
         val subSchema = sparkSchema.subSchemas().get(testDb)
         val table = subSchema.tables().get(testTable)
@@ -47,7 +44,7 @@ class SparkSchemaSpec extends AnyFunSpec with Matchers with MockitoSugar {
     }
 
     it("should throw exception for non-existent table") {
-      withMockTable(None) { spark =>
+      withTableSchema(None) { spark =>
         val sparkSchema = new SparkSchema(spark, testCatalog)
         val subSchema = sparkSchema.subSchemas().get(testDb)
 
@@ -60,7 +57,7 @@ class SparkSchemaSpec extends AnyFunSpec with Matchers with MockitoSugar {
 
   describe("primitive type mapping") {
     it("should map primitive types correctly") {
-      withMockTable("""
+      withTableSchema("""
           bool_col BOOLEAN,
           byte_col BYTE,
           short_col SHORT,
@@ -101,7 +98,7 @@ class SparkSchemaSpec extends AnyFunSpec with Matchers with MockitoSugar {
     }
 
     it("should map interval types correctly") {
-      withMockTable("""
+      withTableSchema("""
           interval_day INTERVAL DAY,
           interval_day_hour INTERVAL DAY TO HOUR,
           interval_day_minute INTERVAL DAY TO MINUTE,
@@ -140,7 +137,7 @@ class SparkSchemaSpec extends AnyFunSpec with Matchers with MockitoSugar {
 
   describe("complex type mapping") {
     it("should map complex types correctly") {
-      withMockTable("""
+      withTableSchema("""
           array_col ARRAY<INT>,
           map_col MAP<STRING, INT>,
           struct_col STRUCT<name: STRING, age: INT>
@@ -157,7 +154,7 @@ class SparkSchemaSpec extends AnyFunSpec with Matchers with MockitoSugar {
     }
 
     it("should map nested complex types correctly") {
-      withMockTable("""
+      withTableSchema("""
           nested_array ARRAY<STRUCT<id: INT, values: ARRAY<STRING>>>,
           nested_struct STRUCT<info: STRUCT<name: STRING, tags: ARRAY<STRING>>>
         """) { spark =>
@@ -172,7 +169,7 @@ class SparkSchemaSpec extends AnyFunSpec with Matchers with MockitoSugar {
     }
 
     it("should preserve nullability for complex types") {
-      withMockTable("""
+      withTableSchema("""
           array_col ARRAY<INT> NOT NULL,
           map_col MAP<STRING, INT> NOT NULL,
           struct_col STRUCT<name: STRING, age: INT> NOT NULL,
@@ -197,14 +194,14 @@ class SparkSchemaSpec extends AnyFunSpec with Matchers with MockitoSugar {
     it("should unwrap user-defined type to underlying SQL type") {
 
       /** Custom type that wraps a Long as its SQL type. */
-      class CustomType extends UserDefinedType[AnyRef] {
+      class PointType extends UserDefinedType[AnyRef] {
         override def sqlType: DataType = LongType
         override def serialize(obj: AnyRef): Any = obj
         override def deserialize(datum: Any): AnyRef = datum.asInstanceOf[AnyRef]
         override def userClass: Class[AnyRef] = classOf[AnyRef]
       }
 
-      withMockTable(Some(new StructType().add("point_col", new CustomType))) { spark =>
+      withTableSchema(Some(new StructType().add("point_col", new PointType))) { spark =>
         val sparkSchema = new SparkSchema(spark, testCatalog)
         val table = sparkSchema.subSchemas().get(testDb).tables().get(testTable)
 
@@ -218,7 +215,7 @@ class SparkSchemaSpec extends AnyFunSpec with Matchers with MockitoSugar {
         .add("calendar_interval_col", CalendarIntervalType)
         .add("object_col", ObjectType(classOf[AnyRef]))
 
-      withMockTable(Some(schema)) { spark =>
+      withTableSchema(Some(schema)) { spark =>
         val sparkSchema = new SparkSchema(spark, testCatalog)
         val table = sparkSchema.subSchemas().get(testDb).tables().get(testTable)
 
@@ -228,11 +225,11 @@ class SparkSchemaSpec extends AnyFunSpec with Matchers with MockitoSugar {
     }
   }
 
-  private def withMockTable(ddl: String)(f: SparkSession => Unit): Unit = {
-    withMockTable(Some(StructType.fromDDL(ddl)))(f)
+  private def withTableSchema(ddl: String)(f: SparkSession => Unit): Unit = {
+    withTableSchema(Some(StructType.fromDDL(ddl)))(f)
   }
 
-  private def withMockTable(schema: Option[StructType])(f: SparkSession => Unit): Unit = {
+  private def withTableSchema(schema: Option[StructType])(f: SparkSession => Unit): Unit = {
     val spark = mock[SparkSession]
     schema match {
       case Some(s) =>

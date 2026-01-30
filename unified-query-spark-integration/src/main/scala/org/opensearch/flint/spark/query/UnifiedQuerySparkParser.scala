@@ -25,7 +25,7 @@ import org.apache.spark.sql.types.{DataType, StructType}
  * the default Spark parser when the input query is not supported.
  *
  * @param context
- *   The UnifiedQueryContext (by-name parameter for lazy evaluation)
+ *   The unified query context (by-name parameter for lazy evaluation)
  * @param sparkParser
  *   The underlying Spark SQL parser to delegate non-PPL queries
  */
@@ -43,8 +43,9 @@ class UnifiedQuerySparkParser(context: => UnifiedQueryContext, sparkParser: Pars
     .build()
 
   /**
-   * Parses a query string into a Spark LogicalPlan. Attempts to parse as PPL and transpile to Spark SQL. If parsing fails with a
-   * SyntaxCheckException, delegates to the underlying Spark parser.
+   * Parses a query string into a Spark LogicalPlan. Attempts to parse as PPL and transpile to
+   * Spark SQL. If parsing fails with a SyntaxCheckException, delegates to the underlying Spark
+   * parser.
    *
    * @param query
    *   The query string (PPL or SQL)
@@ -86,9 +87,7 @@ class UnifiedQuerySparkParser(context: => UnifiedQueryContext, sparkParser: Pars
     sparkParser.parseQuery(sqlText)
 }
 
-/**
- * Companion object for UnifiedQuerySparkParser providing factory method.
- */
+/** Companion object for UnifiedQuerySparkParser providing factory and utility method. */
 object UnifiedQuerySparkParser {
 
   /**
@@ -120,6 +119,12 @@ object UnifiedQuerySparkParser {
       .foreach(catalogName => {
         builder.catalog(catalogName, new SparkSchema(spark, catalogName))
       })
-    builder.build()
+
+    // Enable unrestricted query capabilities for now
+    builder
+      .setting("plugins.calcite.all_join_types.allowed", true)
+      .setting("plugins.ppl.subsearch.maxout", 0)
+      .setting("plugins.ppl.join.subsearch_maxout", 0)
+      .build()
   }
 }
