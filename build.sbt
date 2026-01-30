@@ -182,7 +182,6 @@ lazy val flintCommons = (project in file("flint-commons"))
   .enablePlugins(AssemblyPlugin)
 
 lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
-  .dependsOn(unifiedQuerySparkIntegration)
   .enablePlugins(AssemblyPlugin, Antlr4Plugin)
   .settings(
     commonSettings,
@@ -301,15 +300,13 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
   )
 
 lazy val unifiedQuerySparkIntegration = (project in file("unified-query-spark-integration"))
-  .enablePlugins(AssemblyPlugin)
+  .disablePlugins(AssemblyPlugin)
   .settings(
     commonSettings,
     name := "unified-query-spark-integration",
     scalaVersion := scala212,
     resolvers ++= Seq(
-      // "OpenSearch Snapshots" at "https://aws.oss.sonatype.org/content/repositories/snapshots/",
       "OpenSearch Snapshots" at "https://ci.opensearch.org/ci/dbc/snapshots/maven/",
-      "JitPack" at "https://jitpack.io" // TODO: exclude okhttp-aws-signer which requires this
     ),
     // Force all Jackson dependencies to use Spark's version to avoid conflicts
     dependencyOverrides ++= Seq(
@@ -319,10 +316,8 @@ lazy val unifiedQuerySparkIntegration = (project in file("unified-query-spark-in
     libraryDependencies ++= Seq(
       "org.scalactic" %% "scalactic" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
-      "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
       "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
       "org.mockito" %% "mockito-scala" % "1.16.42" % "test",
-      "com.github.sbt" % "junit-interface" % "0.13.3" % "test",
       // unified-query-api dependency from OpenSearch SQL project
       "org.opensearch.query" % "unified-query-api" % "2.19.4.0-SNAPSHOT"
         excludeAll(
@@ -338,23 +333,7 @@ lazy val unifiedQuerySparkIntegration = (project in file("unified-query-spark-in
           ExclusionRule(organization = "org.slf4j"))
         exclude("org.opensearch.query", "unified-query-protocol")),
     libraryDependencies ++= deps(sparkVersion),
-    publish / skip := true,
-    // Assembly settings
-    assemblyPackageScala / assembleArtifact := false,
-    assembly / assemblyOption ~= {
-      _.withIncludeScala(false)
-    },
-    assembly / assemblyMergeStrategy := {
-      case PathList(ps @ _*) if ps.last endsWith ("module-info.class") =>
-        MergeStrategy.discard
-      case PathList("module-info.class") => MergeStrategy.discard
-      case PathList("META-INF", "versions", xs @ _, "module-info.class") =>
-        MergeStrategy.discard
-      case x =>
-        val oldStrategy = (assembly / assemblyMergeStrategy).value
-        oldStrategy(x)
-    },
-    assembly / test := (Test / test).value
+    publish / skip := true
   )
 
 lazy val IntegrationTest = config("it") extend Test

@@ -67,12 +67,12 @@ The following table shows how Spark SQL types are mapped to Unified Query types 
 | `DateType` | `DATE` | |
 | `TimestampType` | `TIMESTAMP_WITH_LOCAL_TIME_ZONE` | Timestamp with timezone |
 | `TimestampNTZType` | `TIMESTAMP` | Timestamp without timezone |
-| `ArrayType(T, nullable)` | `T ARRAY` | Preserves element nullability |
-| `MapType(K, V, nullable)` | `(K, V) MAP` | Preserves value nullability |
+| `ArrayType(T, nullable)` | `ARRAY<T>` | Preserves element nullability |
+| `MapType(K, V, nullable)` | `MAP<K, V>` | Preserves value nullability |
 | `StructType` | `RecordType` | Preserves field names and nullability |
 | `NullType` | `NULL` | |
-| `DayTimeIntervalType` | `INTERVAL_DAY*` | Maps to appropriate day-time interval |
-| `YearMonthIntervalType` | `INTERVAL_YEAR*` | Maps to appropriate year-month interval |
+| `DayTimeIntervalType` | `INTERVAL_DAY_*` | Maps to appropriate day-time interval |
+| `YearMonthIntervalType` | `INTERVAL_YEAR_*` | Maps to appropriate year-month interval |
 | `UserDefinedType` | Delegates to `sqlType` | Unwraps to underlying SQL type |
 | Unsupported types | `ANY` | Fallback for CalendarIntervalType, ObjectType, etc. |
 
