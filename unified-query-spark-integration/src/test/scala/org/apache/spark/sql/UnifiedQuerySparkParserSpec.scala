@@ -5,11 +5,12 @@
 
 package org.apache.spark.sql
 
-import org.mockito.Answers.RETURNS_DEEP_STUBS
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.IdiomaticMockito
 import org.mockito.Mockito._
-import org.opensearch.flint.spark.query.UnifiedQuerySparkParser
+import org.opensearch.flint.spark.query.{SparkSchema, UnifiedQuerySparkParser}
+import org.opensearch.sql.api.UnifiedQueryContext
+import org.opensearch.sql.executor.QueryType
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
@@ -32,7 +33,6 @@ class UnifiedQuerySparkParserSpec
       StructField("name", StringType),
       StructField("age", IntegerType)))
 
-  private var spark: SparkSession = _
   private var sparkParser: ParserInterface = _
   private var parser: UnifiedQuerySparkParser = _
   private var mockPlan: LogicalPlan = _
@@ -40,16 +40,28 @@ class UnifiedQuerySparkParserSpec
   override def beforeEach(): Unit = {
     super.beforeEach()
 
-    // Deep stub SparkSession for cleaner mock setup
-    spark = mock[SparkSession](RETURNS_DEEP_STUBS)
-    when(spark.sessionState.catalogManager.listCatalogs(None)).thenReturn(Seq("spark_catalog"))
-    when(spark.catalog.currentCatalog).thenReturn("spark_catalog")
-    when(spark.catalog.currentDatabase).thenReturn("default")
-    when(spark.table(anyString()).schema).thenReturn(testSchema)
-
     sparkParser = mock[ParserInterface]
     mockPlan = mock[LogicalPlan]
-    parser = UnifiedQuerySparkParser(spark, sparkParser)
+
+    // Always return the same test schema
+    val spark = mock[SparkSession]
+    val table = mock[DataFrame]
+    when(table.schema).thenReturn(testSchema)
+    when(spark.table(anyString())).thenReturn(table)
+
+    // Build context with all catalogs needed by tests
+    val context = UnifiedQueryContext
+      .builder()
+      .language(QueryType.PPL)
+      .defaultNamespace("spark_catalog.default")
+      .catalog("spark_catalog", new SparkSchema(spark, "spark_catalog"))
+      .catalog("iceberg_catalog", new SparkSchema(spark, "iceberg_catalog"))
+      // Required by join test to simplify the SQL query text
+      .setting("plugins.calcite.all_join_types.allowed", true)
+      .setting("plugins.ppl.subsearch.maxout", 0)
+      .setting("plugins.ppl.join.subsearch_maxout", 0)
+      .build()
+    parser = new UnifiedQuerySparkParser(context, sparkParser)
   }
 
   describe("PPL query parsing") {
@@ -67,10 +79,6 @@ class UnifiedQuerySparkParserSpec
     }
 
     it("should transpile PPL query with non-default catalog") {
-      when(spark.sessionState.catalogManager.listCatalogs(None))
-        .thenReturn(Seq("iceberg_catalog"))
-      when(spark.catalog.currentCatalog).thenReturn("iceberg_catalog")
-
       val expectedSql = "SELECT *\nFROM `iceberg_catalog`.`default`.`events`"
       when(sparkParser.parsePlan(expectedSql)).thenReturn(mockPlan)
 
@@ -78,9 +86,6 @@ class UnifiedQuerySparkParserSpec
     }
 
     it("should transpile PPL query with multiple catalog") {
-      when(spark.sessionState.catalogManager.listCatalogs(None))
-        .thenReturn(Seq("spark_catalog", "iceberg_catalog"))
-
       val expectedSql =
         """SELECT `customers`.`name`, `orders`.`name` `r.name`
           |FROM `spark_catalog`.`default`.`customers`

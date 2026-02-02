@@ -8,11 +8,9 @@ package org.opensearch.flint.spark.query
 import org.opensearch.sql.api.{UnifiedQueryContext, UnifiedQueryPlanner}
 import org.opensearch.sql.api.transpiler.UnifiedQueryTranspiler
 import org.opensearch.sql.common.antlr.SyntaxCheckException
-import org.opensearch.sql.executor.QueryType
 import org.opensearch.sql.ppl.calcite.OpenSearchSparkSqlDialect
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.parser.ParserInterface
@@ -25,7 +23,7 @@ import org.apache.spark.sql.types.{DataType, StructType}
  * the default Spark parser when the input query is not supported.
  *
  * @param context
- *   The unified query context (by-name parameter for lazy evaluation)
+ *   The unified query context (by-name parameter to allow deferred construction by the caller)
  * @param sparkParser
  *   The underlying Spark SQL parser to delegate non-PPL queries
  */
@@ -85,45 +83,4 @@ class UnifiedQuerySparkParser(context: => UnifiedQueryContext, sparkParser: Pars
 
   override def parseQuery(sqlText: String): LogicalPlan =
     sparkParser.parseQuery(sqlText)
-}
-
-/** Companion object for UnifiedQuerySparkParser providing factory and utility method. */
-object UnifiedQuerySparkParser {
-
-  /**
-   * Creates a UnifiedQuerySparkParser with the given Spark session and parser.
-   *
-   * @param spark
-   *   The SparkSession
-   * @param sparkParser
-   *   The underlying Spark SQL parser
-   * @return
-   *   UnifiedQuerySparkParser instance
-   */
-  def apply(spark: SparkSession, sparkParser: ParserInterface): UnifiedQuerySparkParser = {
-    new UnifiedQuerySparkParser(buildContext(spark), sparkParser)
-  }
-
-  private def buildContext(spark: SparkSession): UnifiedQueryContext = {
-    // Currently only PPL is supported, so the configuration below are PPL-specific
-    val currentCatalog = spark.catalog.currentCatalog
-    val currentDatabase = spark.catalog.currentDatabase
-    val builder =
-      UnifiedQueryContext
-        .builder()
-        .language(QueryType.PPL)
-        .defaultNamespace(s"$currentCatalog.$currentDatabase")
-        // Enable unrestricted query capabilities for now
-        .setting("plugins.calcite.all_join_types.allowed", true)
-        .setting("plugins.ppl.subsearch.maxout", 0)
-        .setting("plugins.ppl.join.subsearch_maxout", 0)
-
-    // Register all available catalogs
-    spark.sessionState.catalogManager
-      .listCatalogs(None)
-      .foreach(catalogName => {
-        builder.catalog(catalogName, new SparkSchema(spark, catalogName))
-      })
-    builder.build()
-  }
 }
