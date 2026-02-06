@@ -39,7 +39,8 @@ class SparkSchema(spark: SparkSession, catalogName: String) extends AbstractSche
   }
 
   private def buildCalciteTable(dbName: String, tableName: String): Table = {
-    val sparkTable = spark.table(s"$catalogName.$dbName.$tableName")
+    val quotedTableName = s"`$catalogName`.`$dbName`.`$tableName`"
+    val sparkTable = spark.table(quotedTableName)
     new AbstractTable {
       override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
         sparkTable.schema.toCalcite(typeFactory)

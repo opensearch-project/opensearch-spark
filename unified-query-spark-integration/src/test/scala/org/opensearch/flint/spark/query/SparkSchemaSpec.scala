@@ -235,7 +235,7 @@ class SparkSchemaSpec extends AnyFunSpec with Matchers with MockitoSugar {
       case Some(s) =>
         val table = mock[DataFrame]
         when(table.schema).thenReturn(s)
-        when(spark.table(s"$testCatalog.$testDb.$testTable")).thenReturn(table)
+        when(spark.table(s"`$testCatalog`.`$testDb`.`$testTable`")).thenReturn(table)
       case None =>
         when(spark.table(any[String])).thenThrow(new RuntimeException("Table not found"))
     }
