@@ -33,6 +33,7 @@ class UnifiedQuerySparkParserSpec
       StructField("name", StringType),
       StructField("age", IntegerType)))
 
+  private var spark: SparkSession = _
   private var sparkParser: ParserInterface = _
   private var parser: UnifiedQuerySparkParser = _
   private var mockPlan: LogicalPlan = _
@@ -40,11 +41,11 @@ class UnifiedQuerySparkParserSpec
   override def beforeEach(): Unit = {
     super.beforeEach()
 
+    spark = mock[SparkSession]
     sparkParser = mock[ParserInterface]
     mockPlan = mock[LogicalPlan]
 
     // Always return the same test schema
-    val spark = mock[SparkSession]
     val table = mock[DataFrame]
     when(table.schema).thenReturn(testSchema)
     when(spark.table(anyString())).thenReturn(table)
@@ -145,6 +146,16 @@ class UnifiedQuerySparkParserSpec
       when(sparkParser.parseQuery("query")).thenReturn(mockPlan)
 
       parser.parseQuery("query") shouldBe mockPlan
+    }
+  }
+
+  describe("exception handling") {
+    it("should throw the root cause") {
+      when(spark.table(anyString())).thenThrow(new RuntimeException("root cause"))
+
+      the[RuntimeException] thrownBy {
+        parser.parsePlan("source=spark_catalog.default.non_existent_table")
+      } should have message "root cause"
     }
   }
 }

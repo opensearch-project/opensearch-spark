@@ -58,6 +58,8 @@ class UnifiedQuerySparkParser(context: => UnifiedQueryContext, sparkParser: Pars
     } catch {
       // Fall back to Spark parser if unified query planner cannot handle
       case _: SyntaxCheckException => sparkParser.parsePlan(query)
+      // Unwrap IllegalStateException to propagate the root cause
+      case e: IllegalStateException if e.getCause != null => throw e.getCause
     }
   }
 
