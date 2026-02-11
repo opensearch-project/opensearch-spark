@@ -100,7 +100,7 @@ lazy val commonSettings = Seq(
 
 // running `scalafmtAll` includes all subprojects under root
 lazy val root = (project in file("."))
-  .aggregate(flintCommons, flintCore, flintSparkIntegration, pplSparkIntegration, sparkSqlApplication, integtest)
+  .aggregate(flintCommons, flintCore, flintSparkIntegration, pplSparkIntegration, unifiedQuerySparkIntegration, sparkSqlApplication, integtest)
   .disablePlugins(AssemblyPlugin)
   .settings(name := "flint", publish / skip := true)
 
@@ -297,6 +297,43 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
         oldStrategy(x)
     },
     assembly / test := (Test / test).value
+  )
+
+lazy val unifiedQuerySparkIntegration = (project in file("unified-query-spark-integration"))
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    commonSettings,
+    name := "unified-query-spark-integration",
+    scalaVersion := scala212,
+    resolvers ++= Seq(
+      "OpenSearch Snapshots" at "https://ci.opensearch.org/ci/dbc/snapshots/maven/",
+    ),
+    // Force all Jackson dependencies to use Spark's version to avoid conflicts
+    dependencyOverrides ++= Seq(
+      "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion,
+      "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % jacksonVersion
+    ),
+    libraryDependencies ++= Seq(
+      "org.scalactic" %% "scalactic" % "3.2.15" % "test",
+      "org.scalatest" %% "scalatest" % "3.2.15" % "test",
+      "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
+      "org.mockito" %% "mockito-scala" % "1.16.42" % "test",
+      // unified-query-api dependency from OpenSearch SQL project
+      "org.opensearch.query" % "unified-query-api" % "2.19.4.0-SNAPSHOT"
+        excludeAll(
+          ExclusionRule(organization = "com.fasterxml.jackson.core"),
+          ExclusionRule(organization = "com.fasterxml.jackson.dataformat"),
+          ExclusionRule(organization = "com.fasterxml.jackson.module"),
+          ExclusionRule(organization = "com.fasterxml.jackson.jaxrs"),
+          ExclusionRule(organization = "org.opensearch"),
+          ExclusionRule(organization = "com.squareup.okhttp3"),
+          ExclusionRule(organization = "com.amazonaws"),
+          ExclusionRule(organization = "com.github.babbel"),
+          ExclusionRule(organization = "org.apache.logging.log4j"),
+          ExclusionRule(organization = "org.slf4j"))
+        exclude("org.opensearch.query", "unified-query-protocol")),
+    libraryDependencies ++= deps(sparkVersion),
+    publish / skip := true
   )
 
 lazy val IntegrationTest = config("it") extend Test
