@@ -284,12 +284,18 @@ case class JobOperator(
       statementRunningCount.decrementAndGet()
     }
 
+    val isPreInitQuery = statement.context
+      .get("spark.sql.local.preinitQuery")
+      .exists(_.toString.equalsIgnoreCase("true"))
+
     val metric = {
-      (exceptionThrown, isStreamingOrBatch) match {
-        case (true, true) => MetricConstants.STREAMING_FAILED_METRIC
-        case (true, false) => MetricConstants.STATEMENT_FAILED_METRIC
-        case (false, true) => MetricConstants.STREAMING_SUCCESS_METRIC
-        case (false, false) => MetricConstants.STATEMENT_SUCCESS_METRIC
+      (exceptionThrown, isStreamingOrBatch, isPreInitQuery) match {
+        case (false, _, true) => MetricConstants.PREINIT_SUCCESS_METRIC
+        case (true, _, true) => MetricConstants.PREINIT_FAILED_METRIC
+        case (true, true, _) => MetricConstants.STREAMING_FAILED_METRIC
+        case (true, false, _) => MetricConstants.STATEMENT_FAILED_METRIC
+        case (false, true, _) => MetricConstants.STREAMING_SUCCESS_METRIC
+        case (false, false, _) => MetricConstants.STATEMENT_SUCCESS_METRIC
       }
     }
 
