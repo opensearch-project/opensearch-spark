@@ -459,7 +459,9 @@ trait FlintJobExecutor {
       statusCode: Option[Int] = None): String = {
     throwableHandler.setThrowable(t)
 
-    val errorMessage = s"$messagePrefix: ${t.getMessage}"
+    val rawMessage = Option(t.getMessage).getOrElse("")
+    val sanitizedMessage = rawMessage.split("\n", 2)(0)
+    val errorMessage = s"$messagePrefix: $sanitizedMessage"
     val errorDetails = new java.util.LinkedHashMap[String, String]()
     errorDetails.put("message", errorMessage)
     errorSource.foreach(es => errorDetails.put("ErrorSource", es))
