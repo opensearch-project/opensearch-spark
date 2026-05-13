@@ -29,7 +29,7 @@ import org.opensearch.search.sort.SortOrder
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatestplus.mockito.MockitoSugar
 
-import org.apache.spark.{SparkConf, SparkContext, SparkFunSuite}
+import org.apache.spark.{SparkConf, SparkContext, SparkException, SparkFunSuite}
 import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.sql.FlintREPL.PreShutdownListener
 import org.apache.spark.sql.FlintREPLConfConstants.DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY
@@ -611,6 +611,91 @@ class FlintREPLTest
     result shouldEqual expectedError
     verify(mockFlintCommand).fail()
     verify(mockFlintCommand).error = Some(expectedError)
+  }
+
+  test(
+    "processQueryException should strip the Spark logical plan annotation from AnalysisException messages") {
+    val mockFlintStatement = mock[FlintStatement]
+
+    // AnalysisException.getMessage = "<simple message>; line X pos Y;\n<plan tree>"
+    // The plan tree contains customer query literals (filter values, arns, account ids)
+    // and must NOT be persisted to logs / DQS / DDB.
+    val analysisErrorWithPlan =
+      "[UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name " +
+        "`_CWLBasic_Alias_1`.`arn` cannot be resolved. Did you mean one of the following? " +
+        "[`_CWLBasic_Alias_0`.`arn`].; line 1 pos 295;\n" +
+        "'GlobalLimit 1000\n" +
+        "+- 'Filter (recipientAccountId#16 = 480909524268 AND " +
+        "'_CWLBasic_Alias_1.arn LIKE %customer-secret-bucket%)\n"
+    val exception = new AnalysisException(analysisErrorWithPlan)
+
+    val result = FlintREPL.processQueryException(exception, mockFlintStatement)
+
+    // The plan tree (everything after the first \n) MUST be stripped.
+    result should not include "GlobalLimit"
+    result should not include "Filter"
+    result should not include "480909524268"
+    result should not include "customer-secret-bucket"
+    // The diagnostic prefix (before \n) MUST be preserved so customers can fix their query.
+    result should include("Fail to analyze query. Cause:")
+    result should include("UNRESOLVED_COLUMN.WITH_SUGGESTION")
+    result should include("Did you mean one of the following?")
+    result should include("line 1 pos 295")
+
+    verify(mockFlintStatement).fail()
+    verify(mockFlintStatement).error = Some(result)
+  }
+
+  test(
+    "processQueryException should strip embedded newlines from SparkException messages with stack-trace-like content") {
+    val mockFlintStatement = mock[FlintStatement]
+
+    val sparkErrorWithEmbeddedDetails =
+      "Job aborted due to stage failure: Task 0 in stage 1.0 failed\n" +
+        "\tat org.apache.spark.scheduler.DAGScheduler.org\n" +
+        "\tat customer.private.path.value=secret-token-abc123"
+    val exception = new SparkException(sparkErrorWithEmbeddedDetails)
+
+    val result = FlintREPL.processQueryException(exception, mockFlintStatement)
+
+    // Anything after the first \n must be dropped — internal frames may carry literals.
+    result should not include "DAGScheduler"
+    result should not include "secret-token-abc123"
+    // First line (human-readable summary) is preserved.
+    result should include("Spark exception. Cause:")
+    result should include("Job aborted due to stage failure")
+  }
+
+  test(
+    "processQueryException should leave single-line exception messages unchanged (no false truncation)") {
+    val mockFlintStatement = mock[FlintStatement]
+
+    // Generic exception with a single-line message — no \n means nothing to strip.
+    val exception = new RuntimeException("Connection timed out after 30 seconds")
+
+    val result = FlintREPL.processQueryException(exception, mockFlintStatement)
+
+    // Full message preserved verbatim because there's no \n to split on.
+    result should include("Fail to run query. Cause: Connection timed out after 30 seconds")
+    result should include("\"exception.type\":\"java.lang.RuntimeException\"")
+  }
+
+  test(
+    "processQueryException should handle exceptions whose getMessage returns null without throwing") {
+    val mockFlintStatement = mock[FlintStatement]
+
+    // NullPointerException without a message is a real-world case (NPE thrown without args).
+    // The original code would have produced "Fail to run query. Cause: null" and the new
+    // code produces "Fail to run query. Cause: " — neither should crash and both stay parseable.
+    val exception = new NullPointerException()
+
+    val result = FlintREPL.processQueryException(exception, mockFlintStatement)
+
+    result should include("Fail to run query. Cause:")
+    result should include("\"exception.type\":\"java.lang.NullPointerException\"")
+    // Must not include the literal "null" string that the old behavior produced — proves
+    // the Option(t.getMessage).getOrElse("") guard works.
+    result should not include "Cause: null"
   }
 
   test("Doc Exists and excludeJobIds is an ArrayList Containing JobId") {
