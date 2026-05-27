@@ -63,9 +63,7 @@ class FlintSparkSqlParser(sparkParser: ParserInterface) extends ParserInterface 
     } catch {
       // Fall back to Spark parse plan logic if flint cannot parse
       case e: ParseException =>
-        logInfo(
-          s"Failed to parse PPL with PPL parser. Falling back to Spark parser. PPL: $sqlText",
-          e)
+        logInfo("Failed to parse with Flint SQL parser. Falling back to Spark parser.", e)
         sparkParser.parsePlan(sqlText)
 
     }
