@@ -24,9 +24,9 @@ import play.api.libs.json._
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.FlintREPL.instantiate
-import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
+import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, DEFAULT_SQL_REDACTION, SQL_EXTENSIONS_KEY, SQL_REDACTION_KEY}
 import org.apache.spark.sql.catalyst.parser.ParseException
-import org.apache.spark.sql.exception.UnrecoverableException
+import org.apache.spark.sql.exception.{RedactedException, UnrecoverableException}
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
 import org.apache.spark.sql.types._
@@ -37,6 +37,22 @@ object SparkConfConstants {
   val SQL_EXTENSIONS_KEY = "spark.sql.extensions"
   val DEFAULT_SQL_EXTENSIONS =
     "org.opensearch.flint.spark.FlintPPLSparkExtensions,org.opensearch.flint.spark.FlintSparkExtensions"
+
+  /**
+   * Spark applies this regex (via Utils.redact) to the SQL plan it publishes to the Spark UI / SQL
+   * tab and to the physical plan in event logs. That plan is emitted directly by Spark's
+   * SQLExecution listener, independent of Flint's exception logging, so this config is the only
+   * lever to keep customer query values out of the UI.
+   *
+   * The redaction layer in this application is otherwise structural (see
+   * [[FlintJobExecutor.sanitizedMessage]]); Spark, however, exposes only a regex knob here. To
+   * avoid shipping a fragile pattern, the default targets just two value classes with stable,
+   * unambiguous shapes -- 12-digit AWS account ids and `arn:aws:*` ARNs -- rather than attempting
+   * to match arbitrary filter literals. It is applied only when an operator has not already set
+   * `spark.sql.redaction.string.regex`, so deployments can override or extend it.
+   */
+  val SQL_REDACTION_KEY = "spark.sql.redaction.string.regex"
+  val DEFAULT_SQL_REDACTION = """(\b\d{12}\b)|(arn:aws:[^\s,)\]]*)"""
 }
 
 object FlintJobType {
@@ -143,6 +159,12 @@ trait FlintJobExecutor {
     }
 
     logInfo(s"Value of $SQL_EXTENSIONS_KEY: ${conf.get(SQL_EXTENSIONS_KEY)}")
+
+    // Redact customer query values (account ids, ARNs) from the logical plan that Spark publishes
+    // to the Spark UI and event logs. Operator-set values take precedence.
+    if (!conf.contains(SQL_REDACTION_KEY)) {
+      conf.set(SQL_REDACTION_KEY, DEFAULT_SQL_REDACTION)
+    }
 
     conf
   }
@@ -452,6 +474,47 @@ trait FlintJobExecutor {
       CleanerFactory.cleaner(streaming))
   }
 
+  /**
+   * Returns an exception's message with any customer query content removed, for compliance.
+   *
+   * The leak comes entirely from two [[AnalysisException]] subclasses whose `getMessage` overrides
+   * embed customer query content (verified against Spark 3.5.1 / 4.0.0 / master, identical):
+   *   - `ExtendedAnalysisException.getMessage` = `getSimpleMessage + ";\n" + plan`, appending the
+   *     full logical plan tree (filter literals, ARNs, account ids, column names).
+   *   - `ParseException.getMessage` embeds the raw SQL text in a `== SQL ==` block.
+   *
+   * Both extend [[AnalysisException]], whose `getSimpleMessage` Spark documents as "Outputs an
+   * exception without the logical plan" -- it returns only `"$message; line X pos Y"`, with no
+   * plan and no SQL. So for any [[AnalysisException]] we call `getSimpleMessage` instead of
+   * `getMessage`. This is structural redaction against a stable Spark API -- no string splitting,
+   * no regex, no plan-node matching -- so it cannot leak content the heuristics would miss and
+   * does not break when the plan's text format changes.
+   *
+   * For every other throwable we keep only the first line of the message as defense-in-depth: a
+   * non-analysis exception should not carry a plan, but a nested cause or internal frame rendered
+   * after the first newline could, and the first line is the human-readable summary. (Nested
+   * analysis failures are already handled exactly, because callers unwrap to the root cause via
+   * [[getRootCause]] before this is reached.)
+   */
+  private[sql] def sanitizedMessage(t: Throwable): String = t match {
+    case ae: AnalysisException => ae.getSimpleMessage
+    case other => Option(other.getMessage).getOrElse("").split("\n", 2)(0)
+  }
+
+  /**
+   * Wraps a throwable so that only its [[sanitizedMessage]] is ever exposed (via getMessage /
+   * toString), while preserving the original exception type name and stack trace for debugging.
+   * This is the single redaction point at the catch site: the wrapper is passed to CustomLogging
+   * so customer query content cannot leak through either the `exception.message` attribute or the
+   * log4j stack trace, and the same sanitized message backs the persisted/forwarded error string.
+   */
+  private[sql] def redactThrowable(t: Throwable): Throwable = {
+    val redacted =
+      new RedactedException(t.getClass.getName, sanitizedMessage(t))
+    redacted.setStackTrace(t.getStackTrace)
+    redacted
+  }
+
   private def handleQueryException(
       t: Throwable,
       messagePrefix: String,
@@ -459,9 +522,10 @@ trait FlintJobExecutor {
       statusCode: Option[Int] = None): String = {
     throwableHandler.setThrowable(t)
 
-    val rawMessage = Option(t.getMessage).getOrElse("")
-    val sanitizedMessage = rawMessage.split("\n", 2)(0)
-    val errorMessage = s"$messagePrefix: $sanitizedMessage"
+    // Redact once at the catch point. The same sanitized throwable backs both the persisted /
+    // forwarded error string (-> query result store and downstream consumers) and the driver logs.
+    val safeThrowable = redactThrowable(t)
+    val errorMessage = s"$messagePrefix: ${safeThrowable.getMessage}"
     val errorDetails = new java.util.LinkedHashMap[String, String]()
     errorDetails.put("message", errorMessage)
     errorSource.foreach(es => errorDetails.put("ErrorSource", es))
@@ -471,12 +535,13 @@ trait FlintJobExecutor {
     val errorJson = mapper.writeValueAsString(errorDetails)
     // Record the processed error message
     throwableHandler.setError(errorJson)
-    // CustomLogging will call log4j logger.error() underneath
+    // CustomLogging will call log4j logger.error() underneath. Pass the redacted throwable so the
+    // logical plan does not leak via the logged exception message or stack trace.
     statusCode match {
       case Some(code) =>
-        CustomLogging.logError(new OperationMessage(errorMessage, code), t)
+        CustomLogging.logError(new OperationMessage(errorMessage, code), safeThrowable)
       case None =>
-        CustomLogging.logError(errorMessage, t)
+        CustomLogging.logError(errorMessage, safeThrowable)
     }
 
     errorJson

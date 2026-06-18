@@ -34,10 +34,13 @@ import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.sql.FlintREPL.PreShutdownListener
 import org.apache.spark.sql.FlintREPLConfConstants.DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY
 import org.apache.spark.sql.SessionUpdateMode.SessionUpdateMode
-import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
+import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, DEFAULT_SQL_REDACTION, SQL_EXTENSIONS_KEY, SQL_REDACTION_KEY}
+import org.apache.spark.sql.catalyst.ExtendedAnalysisException
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.parser.ParseException
+import org.apache.spark.sql.catalyst.plans.logical.{LocalRelation, LogicalPlan}
 import org.apache.spark.sql.catalyst.trees.Origin
-import org.apache.spark.sql.exception.UnrecoverableException
+import org.apache.spark.sql.exception.{RedactedException, UnrecoverableException}
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.types.{LongType, NullType, StringType, StructField, StructType}
 import org.apache.spark.sql.util.{DefaultThreadPoolFactory, MockThreadPoolFactory, MockTimeProvider, RealTimeProvider, ShutdownHookManagerTrait}
@@ -179,6 +182,34 @@ class FlintREPLTest
     } finally {
       // Clean up the system property after the test
       System.clearProperty(SQL_EXTENSIONS_KEY)
+    }
+  }
+
+  test(
+    "createSparkConf should set the default plan redaction regex to scrub account ids and ARNs from the Spark UI") {
+    val conf = FlintREPL.createSparkConf()
+
+    conf.get(SQL_REDACTION_KEY) shouldBe DEFAULT_SQL_REDACTION
+
+    // The default targets stable, unambiguous value shapes: a 12-digit account id and an ARN.
+    val regex = conf.get(SQL_REDACTION_KEY).r
+    regex.findFirstIn("recipientAccountId#16 = 000000000000") shouldBe defined
+    regex.findFirstIn(
+      "arn:aws:logs:us-east-1:000000000000:log-group:example") shouldBe defined
+    // It must not over-match ordinary plan tokens (column names, short numbers).
+    regex.findFirstIn("Filter (eventName#17 LIKE %Delete%)") shouldBe empty
+  }
+
+  test(
+    "createSparkConf should not override an operator-set spark.sql.redaction.string.regex") {
+    val customRedaction = "my-custom-redaction-pattern"
+    System.setProperty(SQL_REDACTION_KEY, customRedaction)
+
+    try {
+      val conf = FlintREPL.createSparkConf()
+      conf.get(SQL_REDACTION_KEY) shouldBe customRedaction
+    } finally {
+      System.clearProperty(SQL_REDACTION_KEY)
     }
   }
 
@@ -613,30 +644,52 @@ class FlintREPLTest
     verify(mockFlintCommand).error = Some(expectedError)
   }
 
+  // A logical plan whose rendered string carries identifiable "customer" query content -- column
+  // names embedding a (fake) account id and an ARN. This mirrors the plan tree that Spark appends
+  // to ExtendedAnalysisException.getMessage and that must not be persisted or logged. A
+  // LocalRelation (leaf node) is used so the plan renders deterministically without needing
+  // resolved expressions, keeping the test independent of Spark's plan-formatting internals.
+  private val planAccountIdMarker = "recipientAccountId_000000000000"
+  private val planArnMarker = "arn_aws_logs_us_east_1_000000000000_example_bucket"
+
+  private def customerPlan(): LogicalPlan = {
+    val recipientAccountId = AttributeReference(planAccountIdMarker, StringType)()
+    val secretArn = AttributeReference(planArnMarker, StringType)()
+    LocalRelation(recipientAccountId, secretArn)
+  }
+
+  // Asserts that none of the customer-content markers from customerPlan() survive in `s`.
+  private def assertNoPlanContent(s: String): Unit = {
+    s should not include planAccountIdMarker
+    s should not include planArnMarker
+    s should not include "LocalRelation"
+  }
+
   test(
-    "processQueryException should strip the Spark logical plan annotation from AnalysisException messages") {
+    "processQueryException should strip the logical plan from an ExtendedAnalysisException") {
     val mockFlintStatement = mock[FlintStatement]
 
-    // AnalysisException.getMessage = "<simple message>; line X pos Y;\n<plan tree>"
-    // The plan tree contains customer query literals (filter values, arns, account ids)
-    // and must NOT be persisted to logs / DQS / DDB.
-    val analysisErrorWithPlan =
-      "[UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name " +
-        "`_CWLBasic_Alias_1`.`arn` cannot be resolved. Did you mean one of the following? " +
-        "[`_CWLBasic_Alias_0`.`arn`].; line 1 pos 295;\n" +
-        "'GlobalLimit 1000\n" +
-        "+- 'Filter (recipientAccountId#16 = 480909524268 AND " +
-        "'_CWLBasic_Alias_1.arn LIKE %customer-secret-bucket%)\n"
-    val exception = new AnalysisException(analysisErrorWithPlan)
+    // ExtendedAnalysisException is the analysis-failure type whose
+    //   getMessage = getSimpleMessage + ";\n" + plan.toString
+    // appends the logical plan tree (which carries customer query content).
+    val plan = customerPlan()
+    val exception = new ExtendedAnalysisException(
+      message =
+        "[UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name " +
+          "`alias_1`.`col` cannot be resolved. Did you mean one of the following? " +
+          "[`alias_0`.`col`].",
+      line = Some(1),
+      startPosition = Some(295),
+      plan = Some(plan))
+
+    // Precondition: the unredacted message really does contain the plan, so the test proves a strip.
+    exception.getMessage should include(planAccountIdMarker)
 
     val result = FlintREPL.processQueryException(exception, mockFlintStatement)
 
-    // The plan tree (everything after the first \n) MUST be stripped.
-    result should not include "GlobalLimit"
-    result should not include "Filter"
-    result should not include "480909524268"
-    result should not include "customer-secret-bucket"
-    // The diagnostic prefix (before \n) MUST be preserved so customers can fix their query.
+    // The plan tree MUST be gone.
+    assertNoPlanContent(result)
+    // The diagnostic (error class, suggestion, position) MUST be preserved so customers can fix it.
     result should include("Fail to analyze query. Cause:")
     result should include("UNRESOLVED_COLUMN.WITH_SUGGESTION")
     result should include("Did you mean one of the following?")
@@ -644,6 +697,75 @@ class FlintREPLTest
 
     verify(mockFlintStatement).fail()
     verify(mockFlintStatement).error = Some(result)
+  }
+
+  test(
+    "processQueryException should strip the SQL text from a ParseException (== SQL == block)") {
+    val mockFlintStatement = mock[FlintStatement]
+
+    // ParseException.getMessage embeds the raw SQL command in a "== SQL ==" block. The command is
+    // the verbatim customer query and must not be persisted.
+    val customerSql =
+      "SELECT * FROM logs WHERE arn LIKE '%example-secret-bucket%' SYNTAX_ERROR_HERE"
+    val origin = Origin(line = Some(1), startPosition = Some(60))
+    val exception = new ParseException(
+      command = Some(customerSql),
+      message = "Syntax error at or near 'SYNTAX_ERROR_HERE'",
+      start = origin,
+      stop = origin)
+
+    // Precondition: the unredacted message contains the SQL text.
+    exception.getMessage should include("example-secret-bucket")
+    exception.getMessage should include("== SQL ==")
+
+    val result = FlintREPL.processQueryException(exception, mockFlintStatement)
+
+    // The SQL text and the == SQL == block MUST be gone.
+    result should not include "example-secret-bucket"
+    result should not include "== SQL =="
+    result should not include "SELECT * FROM logs"
+    // The human-readable syntax diagnostic MUST be preserved.
+    result should include("Syntax error")
+    result should include("Syntax error at or near 'SYNTAX_ERROR_HERE'")
+  }
+
+  test(
+    "processQueryException should strip the plan from an ExtendedAnalysisException wrapped in a SparkException (nested root cause)") {
+    val mockFlintStatement = mock[FlintStatement]
+
+    // Real case: analysis can fail mid-execution and surface wrapped in a SparkException. The
+    // caller unwraps to the root cause first, so the typed strip still applies.
+    val analysis = new ExtendedAnalysisException(
+      message = "[UNRESOLVED_COLUMN] cannot resolve column",
+      line = Some(1),
+      startPosition = Some(10),
+      plan = Some(customerPlan()))
+    val wrapper =
+      new SparkException("Job aborted due to stage failure", analysis)
+
+    val result = FlintREPL.processQueryException(wrapper, mockFlintStatement)
+
+    assertNoPlanContent(result)
+    result should include("UNRESOLVED_COLUMN")
+  }
+
+  test(
+    "processQueryException should keep an AnalysisException whose message has newlines but no plan (getSimpleMessage, plan = None)") {
+    val mockFlintStatement = mock[FlintStatement]
+
+    // ExtendedAnalysisException with plan = None: getMessage == getSimpleMessage, no plan annotation.
+    val exception = new ExtendedAnalysisException(
+      message = "Table or view not found: my_table",
+      line = Some(2),
+      startPosition = Some(5),
+      plan = None)
+
+    val result = FlintREPL.processQueryException(exception, mockFlintStatement)
+
+    result should include("Fail to analyze query. Cause:")
+    result should include("Table or view not found: my_table")
+    result should include("line 2 pos 5")
+    assertNoPlanContent(result)
   }
 
   test(
@@ -696,6 +818,95 @@ class FlintREPLTest
     // Must not include the literal "null" string that the old behavior produced — proves
     // the Option(t.getMessage).getOrElse("") guard works.
     result should not include "Cause: null"
+  }
+
+  // ---- Direct unit tests for the redaction helpers (FlintJobExecutor via the FlintREPL object) ----
+
+  test(
+    "sanitizedMessage uses getSimpleMessage for ExtendedAnalysisException, dropping the plan") {
+    val plan = customerPlan()
+    val exception = new ExtendedAnalysisException(
+      message = "[UNRESOLVED_COLUMN] cannot resolve `arn`",
+      line = Some(1),
+      startPosition = Some(295),
+      plan = Some(plan))
+
+    val sanitized = FlintREPL.sanitizedMessage(exception)
+
+    sanitized shouldBe exception.getSimpleMessage
+    sanitized should include("UNRESOLVED_COLUMN")
+    sanitized should include("line 1 pos 295")
+    assertNoPlanContent(sanitized)
+    // The raw getMessage carries the plan; sanitizedMessage must be strictly shorter / different.
+    sanitized should not equal exception.getMessage
+  }
+
+  test("sanitizedMessage uses getSimpleMessage for ParseException, dropping the SQL text") {
+    val customerSql = "SELECT secret_col FROM t WHERE x LIKE '%example-secret%' BADTOKEN"
+    val origin = Origin(line = Some(1), startPosition = Some(40))
+    val exception = new ParseException(
+      command = Some(customerSql),
+      message = "Syntax error at or near 'BADTOKEN'",
+      start = origin,
+      stop = origin)
+
+    val sanitized = FlintREPL.sanitizedMessage(exception)
+
+    sanitized shouldBe exception.getSimpleMessage
+    sanitized should include("Syntax error at or near 'BADTOKEN'")
+    sanitized should not include "example-secret"
+    sanitized should not include "== SQL =="
+    sanitized should not include "secret_col"
+  }
+
+  test(
+    "sanitizedMessage keeps only the first line for non-analysis throwables (defense-in-depth)") {
+    val exception = new RuntimeException("summary line\nsecret-detail-line\nmore-secret")
+    FlintREPL.sanitizedMessage(exception) shouldBe "summary line"
+  }
+
+  test("sanitizedMessage returns empty string for a null message without throwing") {
+    FlintREPL.sanitizedMessage(new RuntimeException()) shouldBe ""
+    FlintREPL.sanitizedMessage(new NullPointerException()) shouldBe ""
+  }
+
+  test("sanitizedMessage leaves a single-line message untouched") {
+    val exception = new IllegalArgumentException("bad arg value 42")
+    FlintREPL.sanitizedMessage(exception) shouldBe "bad arg value 42"
+  }
+
+  test(
+    "redactThrowable exposes only the sanitized message via getMessage/toString while preserving the original type name and stack trace") {
+    val plan = customerPlan()
+    val original = new ExtendedAnalysisException(
+      message = "[UNRESOLVED_COLUMN] cannot resolve `arn`",
+      line = Some(1),
+      startPosition = Some(295),
+      plan = Some(plan))
+
+    val redacted = FlintREPL.redactThrowable(original)
+
+    // getMessage / getLocalizedMessage / toString must never expose the plan -- these are the
+    // exact accessors CustomLogging (exception.message attribute) and log4j (stack-trace header)
+    // read from.
+    redacted.getMessage shouldBe original.getSimpleMessage
+    assertNoPlanContent(redacted.getMessage)
+    assertNoPlanContent(redacted.getLocalizedMessage)
+    assertNoPlanContent(redacted.toString)
+    // The original type name is preserved in toString so the error stays recognizable in logs.
+    redacted.toString should include(original.getClass.getName)
+    redacted.toString should include("ExtendedAnalysisException")
+    // Stack frames are preserved for debugging.
+    redacted.getStackTrace shouldBe original.getStackTrace
+    // The rendered full stack trace must not leak the plan either.
+    val sw = new java.io.StringWriter()
+    redacted.printStackTrace(new java.io.PrintWriter(sw))
+    assertNoPlanContent(sw.toString)
+  }
+
+  test("RedactedException.toString falls back to the type name when the message is null") {
+    val redacted = new RedactedException("com.example.FooException", null)
+    redacted.toString shouldBe "com.example.FooException"
   }
 
   test("Doc Exists and excludeJobIds is an ArrayList Containing JobId") {
