@@ -1137,7 +1137,11 @@ class FlintREPLTest
       verify(mockSparkSession, times(1)).sql(any[String])
       verify(sparkContext, times(1)).cancelJobGroup(any[String])
       assert("timeout" == flintStatement.state)
-      assert(s"Executing ${flintStatement.query} timed out" == flintStatement.error.get)
+      // The timeout error must reference the opaque queryId, never the raw query text (ZOA: the
+      // query carries customer content and must not reach the driver logs / error store).
+      assert(
+        s"Executing query with id ${flintStatement.queryId} timed out" == flintStatement.error.get)
+      flintStatement.error.get should not include flintStatement.query
       result should not be None
     } finally threadPool.shutdown()
   }
