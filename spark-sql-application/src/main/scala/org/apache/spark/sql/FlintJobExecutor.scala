@@ -24,7 +24,7 @@ import play.api.libs.json._
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.FlintREPL.instantiate
-import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, DEFAULT_SQL_REDACTION, SQL_EXTENSIONS_KEY, SQL_REDACTION_KEY}
+import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, DEFAULT_SQL_REDACTION, DEFAULT_SQL_UI_REDACT_PLAN, SQL_EXTENSIONS_KEY, SQL_REDACTION_KEY, SQL_UI_REDACT_PLAN_KEY}
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.exception.{RedactedException, UnrecoverableException}
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -53,6 +53,18 @@ object SparkConfConstants {
    */
   val SQL_REDACTION_KEY = "spark.sql.redaction.string.regex"
   val DEFAULT_SQL_REDACTION = """(\b\d{12}\b)|(arn:aws:[^\s,)\]]*)"""
+
+  /**
+   * ZOA: fully suppress the logical/physical plan text and the call-site SQL string from the Spark
+   * SQL tab and event log. Unlike [[SQL_REDACTION_KEY]] (a regex that only masks matching
+   * substrings of the plan and never touches the call-site `details`), this blanks both leak
+   * fields at the point Spark constructs SparkListenerSQLExecutionStart, so no customer query
+   * content reaches the UI. Requires the runtime Spark build to honor this flag (see the
+   * SQLExecution.withNewExecutionId patch); on an unpatched Spark it is simply ignored, and the
+   * regex default above remains as defense-in-depth. Operator-set values take precedence.
+   */
+  val SQL_UI_REDACT_PLAN_KEY = "spark.sql.ui.redactPlanDescription.enabled"
+  val DEFAULT_SQL_UI_REDACT_PLAN = "true"
 }
 
 object FlintJobType {
@@ -164,6 +176,13 @@ trait FlintJobExecutor {
     // to the Spark UI and event logs. Operator-set values take precedence.
     if (!conf.contains(SQL_REDACTION_KEY)) {
       conf.set(SQL_REDACTION_KEY, DEFAULT_SQL_REDACTION)
+    }
+
+    // ZOA: fully suppress plan text + call-site SQL from the Spark UI / event log. This is the
+    // complete fix (the regex above is only partial and does not cover `details`); it is honored
+    // by the patched runtime Spark build and ignored by an unpatched one. Operator override wins.
+    if (!conf.contains(SQL_UI_REDACT_PLAN_KEY)) {
+      conf.set(SQL_UI_REDACT_PLAN_KEY, DEFAULT_SQL_UI_REDACT_PLAN)
     }
 
     conf
