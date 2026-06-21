@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.stream.Collectors;
 import org.opensearch.action.bulk.BulkResponse;
+import org.opensearch.flint.core.http.handler.ConnectionExceptionRetryPredicate;
 import org.opensearch.flint.core.http.handler.ExceptionClassNameFailurePredicate;
 import org.opensearch.flint.core.http.handler.HttpAOSSResultPredicate;
 import org.opensearch.flint.core.http.handler.HttpStatusCodeResultPredicate;
@@ -85,6 +86,9 @@ public class FlintRetryOptions implements Serializable {
         // Failure handling config from Flint options
         .withMaxRetries(getMaxRetries())
         .handleIf(ExceptionClassNameFailurePredicate.create(getRetryableExceptionClassNames()))
+        // Always retry transient connection-level faults (matched by simple class name so this
+        // works regardless of Apache HTTP client shading). Narrow on purpose -- not any IOException.
+        .handleIf(new ConnectionExceptionRetryPredicate())
         .handleResultIf(new HttpStatusCodeResultPredicate<>(getRetryableHttpStatusCodes()))
         // Logging listener
         .onFailedAttempt(FlintRetryOptions::onFailure)
