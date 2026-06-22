@@ -453,27 +453,13 @@ trait FlintJobExecutor {
   }
 
   /**
-   * Returns an exception's message with any customer query content removed, for compliance.
+   * Returns an exception's message with customer query content removed, for compliance.
    *
-   * The leak comes entirely from two [[AnalysisException]] subclasses whose `getMessage`
-   * overrides embed customer query content (verified against Spark 3.5.1 / 4.0.0 / master,
-   * identical):
-   *   - `ExtendedAnalysisException.getMessage` = `getSimpleMessage + ";\n" + plan`, appending the
-   *     full logical plan tree (filter literals, ARNs, account ids, column names).
-   *   - `ParseException.getMessage` embeds the raw SQL text in a `== SQL ==` block.
-   *
-   * Both extend [[AnalysisException]], whose `getSimpleMessage` Spark documents as "Outputs an
-   * exception without the logical plan" -- it returns only `"$message; line X pos Y"`, with no
-   * plan and no SQL. So for any [[AnalysisException]] we call `getSimpleMessage` instead of
-   * `getMessage`. This is structural redaction against a stable Spark API -- no string splitting,
-   * no regex, no plan-node matching -- so it cannot leak content the heuristics would miss and
-   * does not break when the plan's text format changes.
-   *
-   * For every other throwable we keep only the first line of the message as defense-in-depth: a
-   * non-analysis exception should not carry a plan, but a nested cause or internal frame rendered
-   * after the first newline could, and the first line is the human-readable summary. (Nested
-   * analysis failures are already handled exactly, because callers unwrap to the root cause via
-   * [[getRootCause]] before this is reached.)
+   * `ExtendedAnalysisException` and `ParseException` (both [[AnalysisException]]) embed the
+   * logical plan / raw SQL in `getMessage`. For any [[AnalysisException]] we use
+   * `getSimpleMessage`, which Spark documents as emitting the diagnostic without the plan. For
+   * other throwables we keep only the first line as defense-in-depth (callers unwrap to the root
+   * cause before this is reached).
    */
   private[sql] def sanitizedMessage(t: Throwable): String = t match {
     case ae: AnalysisException => ae.getSimpleMessage

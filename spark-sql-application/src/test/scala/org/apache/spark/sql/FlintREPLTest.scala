@@ -670,6 +670,29 @@ class FlintREPLTest
   }
 
   test(
+    "processQueryException should preserve the original exception.type after redaction (no metrics/dispatch regression)") {
+    // Redaction wraps the throwable in a RedactedException only for the logged message and the
+    // persisted error string; it must NOT change the exception type that downstream type-based
+    // logic observes (e.g. the S3/Glue error counters, or any consumer reading exception.type).
+    // The persisted exception.type is taken from the original throwable, so it stays the real type
+    // even though the message is sanitized.
+    val mockFlintStatement = mock[FlintStatement]
+    val exception = new ExtendedAnalysisException(
+      message = "[UNRESOLVED_COLUMN] cannot resolve column",
+      line = Some(1),
+      startPosition = Some(10),
+      plan = Some(customerPlan()))
+
+    val result = FlintREPL.processQueryException(exception, mockFlintStatement)
+
+    // The plan is gone, but the recorded type is the original exception, not RedactedException.
+    assertNoPlanContent(result)
+    result should include(
+      "\"exception.type\":\"org.apache.spark.sql.catalyst.ExtendedAnalysisException\"")
+    result should not include "RedactedException"
+  }
+
+  test(
     "processQueryException should strip the SQL text from a ParseException (== SQL == block)") {
     val mockFlintStatement = mock[FlintStatement]
 
