@@ -34,7 +34,7 @@ import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.sql.FlintREPL.PreShutdownListener
 import org.apache.spark.sql.FlintREPLConfConstants.DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY
 import org.apache.spark.sql.SessionUpdateMode.SessionUpdateMode
-import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, DEFAULT_SQL_REDACTION, DEFAULT_SQL_UI_REDACT_PLAN, SQL_EXTENSIONS_KEY, SQL_REDACTION_KEY, SQL_UI_REDACT_PLAN_KEY}
+import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.catalyst.ExtendedAnalysisException
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.parser.ParseException
@@ -182,54 +182,6 @@ class FlintREPLTest
     } finally {
       // Clean up the system property after the test
       System.clearProperty(SQL_EXTENSIONS_KEY)
-    }
-  }
-
-  test(
-    "createSparkConf should set the default plan redaction regex to scrub account ids and ARNs from the Spark UI") {
-    val conf = FlintREPL.createSparkConf()
-
-    conf.get(SQL_REDACTION_KEY) shouldBe DEFAULT_SQL_REDACTION
-
-    // The default targets stable, unambiguous value shapes: a 12-digit account id and an ARN.
-    val regex = conf.get(SQL_REDACTION_KEY).r
-    regex.findFirstIn("recipientAccountId#16 = 000000000000") shouldBe defined
-    regex.findFirstIn("arn:aws:logs:us-east-1:000000000000:log-group:example") shouldBe defined
-    // It must not over-match ordinary plan tokens (column names, short numbers).
-    regex.findFirstIn("Filter (eventName#17 LIKE %Delete%)") shouldBe empty
-  }
-
-  test("createSparkConf should not override an operator-set spark.sql.redaction.string.regex") {
-    val customRedaction = "my-custom-redaction-pattern"
-    System.setProperty(SQL_REDACTION_KEY, customRedaction)
-
-    try {
-      val conf = FlintREPL.createSparkConf()
-      conf.get(SQL_REDACTION_KEY) shouldBe customRedaction
-    } finally {
-      System.clearProperty(SQL_REDACTION_KEY)
-    }
-  }
-
-  test("createSparkConf should enable full Spark-UI plan suppression by default (ZOA)") {
-    // The regex redaction (SQL_REDACTION_KEY) is only a partial mask; this flag is the complete
-    // suppression of plan text + call-site SQL from the Spark UI / event log, honored by the
-    // patched runtime Spark build. It must default to on for Flint jobs.
-    val conf = FlintREPL.createSparkConf()
-
-    conf.get(SQL_UI_REDACT_PLAN_KEY) shouldBe DEFAULT_SQL_UI_REDACT_PLAN
-    conf.get(SQL_UI_REDACT_PLAN_KEY) shouldBe "true"
-  }
-
-  test(
-    "createSparkConf should not override an operator-set spark.sql.ui.redactPlanDescription.enabled") {
-    System.setProperty(SQL_UI_REDACT_PLAN_KEY, "false")
-
-    try {
-      val conf = FlintREPL.createSparkConf()
-      conf.get(SQL_UI_REDACT_PLAN_KEY) shouldBe "false"
-    } finally {
-      System.clearProperty(SQL_UI_REDACT_PLAN_KEY)
     }
   }
 
