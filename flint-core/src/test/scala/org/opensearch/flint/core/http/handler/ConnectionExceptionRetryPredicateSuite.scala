@@ -36,7 +36,8 @@ class ConnectionExceptionRetryPredicateSuite extends AnyFlatSpec with Matchers {
   it should "retry a relocated/shaded connection exception by simple name" in {
     // Different package, same simple name -> must match (shading-independent).
     predicate.test(
-      new _root_.shaded.org.apache.http.ConnectionClosedException("Connection is closed")) shouldBe true
+      new _root_.shaded.org.apache.http.ConnectionClosedException(
+        "Connection is closed")) shouldBe true
   }
 
   it should "not retry non-connection exceptions" in {

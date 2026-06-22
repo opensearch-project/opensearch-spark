@@ -115,7 +115,8 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
   it should "retry a transient connection exception nested in the cause chain by default" in {
     // Mirrors the real failure shape, where the connection fault is wrapped before it surfaces.
     retryableClient
-      .whenThrow(new RuntimeException("wrapper", new ConnectionClosedException("Connection is closed")))
+      .whenThrow(
+        new RuntimeException("wrapper", new ConnectionClosedException("Connection is closed")))
       .shouldExecute(times(DEFAULT_MAX_RETRIES + 1))
   }
 
