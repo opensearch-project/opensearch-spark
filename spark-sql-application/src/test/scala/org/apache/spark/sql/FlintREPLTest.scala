@@ -798,7 +798,7 @@ class FlintREPLTest
 
     val result = FlintREPL.processQueryException(exception, mockFlintStatement)
 
-    // Anything after the first \n must be dropped — internal frames may carry literals.
+    // Anything after the first \n must be dropped - internal frames may carry literals.
     result should not include "DAGScheduler"
     result should not include "secret-token-abc123"
     // First line (human-readable summary) is preserved.
@@ -810,7 +810,7 @@ class FlintREPLTest
     "processQueryException should leave single-line exception messages unchanged (no false truncation)") {
     val mockFlintStatement = mock[FlintStatement]
 
-    // Generic exception with a single-line message — no \n means nothing to strip.
+    // Generic exception with a single-line message - no \n means nothing to strip.
     val exception = new RuntimeException("Connection timed out after 30 seconds")
 
     val result = FlintREPL.processQueryException(exception, mockFlintStatement)
@@ -826,14 +826,14 @@ class FlintREPLTest
 
     // NullPointerException without a message is a real-world case (NPE thrown without args).
     // The original code would have produced "Fail to run query. Cause: null" and the new
-    // code produces "Fail to run query. Cause: " — neither should crash and both stay parseable.
+    // code produces "Fail to run query. Cause: " - neither should crash and both stay parseable.
     val exception = new NullPointerException()
 
     val result = FlintREPL.processQueryException(exception, mockFlintStatement)
 
     result should include("Fail to run query. Cause:")
     result should include("\"exception.type\":\"java.lang.NullPointerException\"")
-    // Must not include the literal "null" string that the old behavior produced — proves
+    // Must not include the literal "null" string that the old behavior produced - proves
     // the Option(t.getMessage).getOrElse("") guard works.
     result should not include "Cause: null"
   }
