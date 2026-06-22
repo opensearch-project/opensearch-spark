@@ -17,9 +17,11 @@ package org.apache.spark.sql.exception
  * through `getMessage`, `getLocalizedMessage`, `toString`, or the rendered stack trace, while
  * still keeping the human-readable diagnostic and frames needed to debug where the error arose.
  *
- * @param originalClassName fully qualified name of the original exception type, surfaced in the
- *                          rendered stack trace header so the error remains recognizable
- * @param redactedMessage   the already-sanitized message (must not contain the plan or SQL text)
+ * @param originalClassName
+ *   fully qualified name of the original exception type, surfaced in the rendered stack trace
+ *   header so the error remains recognizable
+ * @param redactedMessage
+ *   the already-sanitized message (must not contain the plan or SQL text)
  */
 class RedactedException(originalClassName: String, redactedMessage: String)
     extends RuntimeException(redactedMessage) {

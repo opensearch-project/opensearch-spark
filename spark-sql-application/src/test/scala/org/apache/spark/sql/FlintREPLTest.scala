@@ -194,14 +194,12 @@ class FlintREPLTest
     // The default targets stable, unambiguous value shapes: a 12-digit account id and an ARN.
     val regex = conf.get(SQL_REDACTION_KEY).r
     regex.findFirstIn("recipientAccountId#16 = 000000000000") shouldBe defined
-    regex.findFirstIn(
-      "arn:aws:logs:us-east-1:000000000000:log-group:example") shouldBe defined
+    regex.findFirstIn("arn:aws:logs:us-east-1:000000000000:log-group:example") shouldBe defined
     // It must not over-match ordinary plan tokens (column names, short numbers).
     regex.findFirstIn("Filter (eventName#17 LIKE %Delete%)") shouldBe empty
   }
 
-  test(
-    "createSparkConf should not override an operator-set spark.sql.redaction.string.regex") {
+  test("createSparkConf should not override an operator-set spark.sql.redaction.string.regex") {
     val customRedaction = "my-custom-redaction-pattern"
     System.setProperty(SQL_REDACTION_KEY, customRedaction)
 
@@ -213,8 +211,7 @@ class FlintREPLTest
     }
   }
 
-  test(
-    "createSparkConf should enable full Spark-UI plan suppression by default (ZOA)") {
+  test("createSparkConf should enable full Spark-UI plan suppression by default (ZOA)") {
     // The regex redaction (SQL_REDACTION_KEY) is only a partial mask; this flag is the complete
     // suppression of plan text + call-site SQL from the Spark UI / event log, honored by the
     // patched runtime Spark build. It must default to on for Flint jobs.
@@ -688,8 +685,7 @@ class FlintREPLTest
     s should not include "LocalRelation"
   }
 
-  test(
-    "processQueryException should strip the logical plan from an ExtendedAnalysisException") {
+  test("processQueryException should strip the logical plan from an ExtendedAnalysisException") {
     val mockFlintStatement = mock[FlintStatement]
 
     // ExtendedAnalysisException is the analysis-failure type whose
@@ -697,10 +693,9 @@ class FlintREPLTest
     // appends the logical plan tree (which carries customer query content).
     val plan = customerPlan()
     val exception = new ExtendedAnalysisException(
-      message =
-        "[UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name " +
-          "`alias_1`.`col` cannot be resolved. Did you mean one of the following? " +
-          "[`alias_0`.`col`].",
+      message = "[UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name " +
+        "`alias_1`.`col` cannot be resolved. Did you mean one of the following? " +
+        "[`alias_0`.`col`].",
       line = Some(1),
       startPosition = Some(295),
       plan = Some(plan))

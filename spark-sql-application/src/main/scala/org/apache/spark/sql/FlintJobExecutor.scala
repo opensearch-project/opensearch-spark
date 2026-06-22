@@ -39,8 +39,8 @@ object SparkConfConstants {
     "org.opensearch.flint.spark.FlintPPLSparkExtensions,org.opensearch.flint.spark.FlintSparkExtensions"
 
   /**
-   * Spark applies this regex (via Utils.redact) to the SQL plan it publishes to the Spark UI / SQL
-   * tab and to the physical plan in event logs. That plan is emitted directly by Spark's
+   * Spark applies this regex (via Utils.redact) to the SQL plan it publishes to the Spark UI /
+   * SQL tab and to the physical plan in event logs. That plan is emitted directly by Spark's
    * SQLExecution listener, independent of Flint's exception logging, so this config is the only
    * lever to keep customer query values out of the UI.
    *
@@ -55,8 +55,8 @@ object SparkConfConstants {
   val DEFAULT_SQL_REDACTION = """(\b\d{12}\b)|(arn:aws:[^\s,)\]]*)"""
 
   /**
-   * ZOA: fully suppress the logical/physical plan text and the call-site SQL string from the Spark
-   * SQL tab and event log. Unlike [[SQL_REDACTION_KEY]] (a regex that only masks matching
+   * ZOA: fully suppress the logical/physical plan text and the call-site SQL string from the
+   * Spark SQL tab and event log. Unlike [[SQL_REDACTION_KEY]] (a regex that only masks matching
    * substrings of the plan and never touches the call-site `details`), this blanks both leak
    * fields at the point Spark constructs SparkListenerSQLExecutionStart, so no customer query
    * content reaches the UI. Requires the runtime Spark build to honor this flag (see the
@@ -496,8 +496,9 @@ trait FlintJobExecutor {
   /**
    * Returns an exception's message with any customer query content removed, for compliance.
    *
-   * The leak comes entirely from two [[AnalysisException]] subclasses whose `getMessage` overrides
-   * embed customer query content (verified against Spark 3.5.1 / 4.0.0 / master, identical):
+   * The leak comes entirely from two [[AnalysisException]] subclasses whose `getMessage`
+   * overrides embed customer query content (verified against Spark 3.5.1 / 4.0.0 / master,
+   * identical):
    *   - `ExtendedAnalysisException.getMessage` = `getSimpleMessage + ";\n" + plan`, appending the
    *     full logical plan tree (filter literals, ARNs, account ids, column names).
    *   - `ParseException.getMessage` embeds the raw SQL text in a `== SQL ==` block.
