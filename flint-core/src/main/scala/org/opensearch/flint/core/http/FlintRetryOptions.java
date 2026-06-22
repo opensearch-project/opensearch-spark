@@ -14,20 +14,19 @@ import dev.failsafe.RetryPolicy;
 import dev.failsafe.RetryPolicyBuilder;
 import dev.failsafe.event.ExecutionAttemptedEvent;
 import dev.failsafe.function.CheckedPredicate;
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.util.stream.Collectors;
 import org.opensearch.action.bulk.BulkResponse;
-import org.opensearch.flint.core.http.handler.ConnectionExceptionRetryPredicate;
 import org.opensearch.flint.core.http.handler.ExceptionClassNameFailurePredicate;
 import org.opensearch.flint.core.http.handler.HttpAOSSResultPredicate;
 import org.opensearch.flint.core.http.handler.HttpStatusCodeResultPredicate;
-import java.io.Serializable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Flint options related to HTTP request retry.
@@ -59,6 +58,21 @@ public class FlintRetryOptions implements Serializable {
    */
   public static final String RETRYABLE_EXCEPTION_CLASS_NAMES = "retry.exception_class_names";
 
+  /**
+   * Transient connection-level faults that are retried by default. These are the cases where the
+   * request either never reached the server or no complete response was received, which are safe
+   * to retry for idempotent operations. Kept as simple class names so matching is independent of
+   * Apache HTTP client shading/relocation (see {@link ExceptionClassNameFailurePredicate}). Users
+   * can override this setting to add or remove entries. Deliberately narrow rather than "any
+   * IOException", so protocol/parse/SSL errors that extend IOException are not retried.
+   */
+  public static final String DEFAULT_RETRYABLE_EXCEPTION_CLASS_NAMES = String.join(",",
+      "ConnectException",               // java.net - connection could not be established
+      "ConnectionClosedException",      // org.apache.http - connection closed mid-flight
+      "NoHttpResponseException",        // org.apache.http - server closed before responding
+      "ConnectionPoolTimeoutException", // org.apache.http - timed out leasing a connection
+      "SocketTimeoutException");        // java.net - read/connect timed out
+
   public FlintRetryOptions(Map<String, String> options) {
     this.options = options;
   }
@@ -86,9 +100,6 @@ public class FlintRetryOptions implements Serializable {
         // Failure handling config from Flint options
         .withMaxRetries(getMaxRetries())
         .handleIf(ExceptionClassNameFailurePredicate.create(getRetryableExceptionClassNames()))
-        // Always retry transient connection-level faults (matched by simple class name so this
-        // works regardless of Apache HTTP client shading). Narrow on purpose -- not any IOException.
-        .handleIf(new ConnectionExceptionRetryPredicate())
         .handleResultIf(new HttpStatusCodeResultPredicate<>(getRetryableHttpStatusCodes()))
         // Logging listener
         .onFailedAttempt(FlintRetryOptions::onFailure)
@@ -158,10 +169,12 @@ public class FlintRetryOptions implements Serializable {
   }
 
   /**
-   * @return retryable exception class name list
+   * @return retryable exception class name list, defaulting to the transient connection-level
+   *         faults in {@link #DEFAULT_RETRYABLE_EXCEPTION_CLASS_NAMES} when not configured
    */
   public Optional<String> getRetryableExceptionClassNames() {
-    return Optional.ofNullable(options.get(RETRYABLE_EXCEPTION_CLASS_NAMES));
+    return Optional.of(
+        options.getOrDefault(RETRYABLE_EXCEPTION_CLASS_NAMES, DEFAULT_RETRYABLE_EXCEPTION_CLASS_NAMES));
   }
 
   @Override

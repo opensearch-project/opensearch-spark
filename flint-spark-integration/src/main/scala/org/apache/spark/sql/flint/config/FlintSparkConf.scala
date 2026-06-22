@@ -194,7 +194,8 @@ object FlintSparkConf {
   val RETRYABLE_EXCEPTION_CLASS_NAMES =
     FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.RETRYABLE_EXCEPTION_CLASS_NAMES}")
       .datasourceOption()
-      .doc("retryable exception class name list, by default no retry on exception thrown")
+      .doc("retryable exception class name list; when unset, defaults to transient "
+        + "connection-level faults. Set this to override the defaulted list.")
       .createOptional()
 
   val OPTIMIZER_RULE_ENABLED = FlintConfig("spark.flint.optimizer.enabled")

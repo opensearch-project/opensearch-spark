@@ -98,8 +98,8 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
   }
 
   it should "retry transient connection exceptions by default (no config)" in {
-    // ConnectionExceptionRetryPredicate retries connection-level faults out of the box, matched
-    // by simple class name so it is independent of Apache HTTP client shading/relocation.
+    // retry.exception_class_names defaults to the transient connection faults, matched by simple
+    // class name so it is independent of Apache HTTP client shading/relocation.
     Seq(
       new ConnectException("connect"),
       new SocketTimeoutException("read timed out"),
@@ -149,10 +149,19 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
   }
 
   it should "not retry if exception is not on the retryable exception list" in {
-    // Use a non-connection exception so neither the (empty) configured list nor the connection
-    // predicate applies, isolating the "not on the list" semantics.
+    // Use a non-connection exception so it is absent from the defaulted connection-fault list,
+    // isolating the "not on the list" semantics.
     retryableClient
       .whenThrow(new IllegalStateException)
+      .shouldExecute(times(1))
+  }
+
+  it should "not retry transient connection exceptions when the list is overridden" in {
+    // Setting retry.exception_class_names overrides (replaces) the connection-fault default, so a
+    // connection exception no longer matches when it is not in the override.
+    retryableClient
+      .withOption("retry.exception_class_names", "java.lang.IllegalStateException")
+      .whenThrow(new ConnectException("connect"))
       .shouldExecute(times(1))
   }
 

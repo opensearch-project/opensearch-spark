@@ -5,8 +5,6 @@
 
 package org.apache.spark.sql.flint.config
 
-import java.util.Optional
-
 import scala.collection.JavaConverters._
 
 import org.opensearch.flint.core.FlintOptions
@@ -48,7 +46,9 @@ class FlintSparkConfSuite extends FlintSuite {
     val retryOptions = FlintSparkConf().flintOptions().getRetryOptions
     retryOptions.getMaxRetries shouldBe DEFAULT_MAX_RETRIES
     retryOptions.getRetryableHttpStatusCodes should contain theSameElementsAs Set(429, 500, 502)
-    retryOptions.getRetryableExceptionClassNames shouldBe Optional.empty
+    // Defaults to the transient connection-level faults so a single blip is retried out of the box.
+    retryOptions.getRetryableExceptionClassNames
+      .get() shouldBe DEFAULT_RETRYABLE_EXCEPTION_CLASS_NAMES
   }
 
   test("test specified retry options") {
