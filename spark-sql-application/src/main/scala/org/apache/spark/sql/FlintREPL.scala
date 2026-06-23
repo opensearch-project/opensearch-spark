@@ -691,7 +691,11 @@ object FlintREPL extends Logging with FlintJobExecutor {
           queryWaitTimeMillis))
     } catch {
       case e: TimeoutException =>
-        val error = s"Executing ${flintStatement.query} timed out"
+        // Log only the non-sensitive queryId, never the raw query text. The query string carries
+        // customer content (filter literals, ARNs, account ids); under ZOA it must not reach the
+        // driver logs. queryId is an opaque identifier, consistent with FlintStatement.toString
+        // which also omits the query.
+        val error = s"Executing query with id ${flintStatement.queryId} timed out"
         CustomLogging.logError(error, e)
         Some(
           handleCommandTimeout(
