@@ -14,21 +14,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Failure handler that retries an exception when its class name appears in the configured list,
- * matched over the whole cause-chain (see {@link ErrorStacktraceFailurePredicate}).
+ * Failure handler that retries an exception when a configured class name matches the exception or
+ * any of its superclasses, over the whole cause-chain (see {@link ErrorStacktraceFailurePredicate}).
  *
- * <p>Matching is by class name string, against both the exception's fully-qualified name
- * ({@link Class#getName()}) and its simple name ({@link Class#getSimpleName()}). A configured
- * entry therefore matches if it equals either form, so both fully-qualified names
- * (e.g. {@code java.net.ConnectException}) and simple names (e.g. {@code ConnectException}) are
- * accepted.
+ * <p>For each exception, its class hierarchy is walked (the class and every superclass) and a
+ * configured entry matches if it equals that class's fully-qualified name
+ * ({@link Class#getName()}) or its simple name ({@link Class#getSimpleName()}). So both
+ * fully-qualified names (e.g. {@code java.net.ConnectException}) and simple names
+ * (e.g. {@code ConnectException}) are accepted, and a configured name also matches subclasses
+ * (e.g. {@code ConnectException} matches {@code org.apache.http.conn.HttpHostConnectException},
+ * which is what connection-refused surfaces as).
  *
- * <p>Simple-name matching is what makes the default connection-fault list shading agnostic: the
- * OpenSearch REST client relocates (shades) Apache HTTP, so at runtime the thrown class is e.g. a
- * relocated {@code <shaded-prefix>.org.apache.http.ConnectionClosedException}. Its
- * {@code getName()} carries the unknown shade prefix, but its {@code getSimpleName()} is still
- * {@code ConnectionClosedException}. Matching by name string (rather than loading the class and
- * calling {@code isInstance}) avoids both the unknown-prefix problem and loading classes.
+ * <p>Walking the hierarchy by name (rather than loading the configured class and calling
+ * {@code isInstance}) keeps subtype matching while remaining shading agnostic: the OpenSearch REST
+ * client relocates (shades) Apache HTTP, so at runtime the thrown class is e.g. a relocated
+ * {@code <shaded-prefix>.org.apache.http.ConnectionClosedException}. Its {@code getName()} carries
+ * the unknown shade prefix, but its {@code getSimpleName()} is still {@code ConnectionClosedException}.
+ * Matching the simple name over the hierarchy avoids both the unknown-prefix problem and loading
+ * classes from a configured (possibly unshaded or non-existent) name.
  */
 public class ExceptionClassNameFailurePredicate extends ErrorStacktraceFailurePredicate {
 
@@ -60,9 +63,17 @@ public class ExceptionClassNameFailurePredicate extends ErrorStacktraceFailurePr
 
   @Override
   protected boolean isRetryable(Throwable throwable) {
-    Class<? extends Throwable> clazz = throwable.getClass();
-    // Match by fully-qualified name (backward compatible) or simple name (shading agnostic).
-    return retryableExceptionClassNames.contains(clazz.getName())
-        || retryableExceptionClassNames.contains(clazz.getSimpleName());
+    // Walk the class hierarchy so a configured name also matches subclasses (e.g. the default
+    // "ConnectException" matches HttpHostConnectException). Match by fully-qualified name
+    // (backward compatible) or simple name (shading agnostic).
+    for (Class<?> clazz = throwable.getClass();
+        clazz != null && clazz != Object.class;
+        clazz = clazz.getSuperclass()) {
+      if (retryableExceptionClassNames.contains(clazz.getName())
+          || retryableExceptionClassNames.contains(clazz.getSimpleName())) {
+        return true;
+      }
+    }
+    return false;
   }
 }

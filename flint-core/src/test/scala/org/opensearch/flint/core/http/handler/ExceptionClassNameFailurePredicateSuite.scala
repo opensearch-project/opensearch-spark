@@ -9,6 +9,8 @@ import java.net.{ConnectException, SocketTimeoutException}
 import java.util.concurrent.ExecutionException
 
 import org.apache.http.{ConnectionClosedException, NoHttpResponseException}
+import org.apache.http.HttpHost
+import org.apache.http.conn.HttpHostConnectException
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -25,6 +27,16 @@ class ExceptionClassNameFailurePredicateSuite extends AnyFlatSpec with Matchers 
   it should "match by simple class name" in {
     val predicate = new ExceptionClassNameFailurePredicate("ConnectException")
     predicate.test(new ConnectException("connect")) shouldBe true
+  }
+
+  it should "match a subclass of a configured exception" in {
+    // Connection-refused surfaces as HttpHostConnectException, which extends ConnectException, so
+    // the default "ConnectException" must still match it (subtype matching over the hierarchy).
+    val predicate = new ExceptionClassNameFailurePredicate("ConnectException")
+    val ex = new HttpHostConnectException(
+      new ConnectException("Connection refused"),
+      new HttpHost("localhost", 9200))
+    predicate.test(ex) shouldBe true
   }
 
   it should "match a relocated/shaded exception by its simple name" in {
@@ -58,9 +70,9 @@ class ExceptionClassNameFailurePredicateSuite extends AnyFlatSpec with Matchers 
       new RuntimeException("generic")).foreach(ex => predicate.test(ex) shouldBe false)
   }
 
-  it should "not match an unrelated IOException (narrow by exact name, not any IOException)" in {
-    // A plain IOException with a non-listed simple name must NOT match, proving matching is by
-    // exact class name rather than assignability to IOException.
+  it should "not match an unrelated IOException (narrow by design, not any IOException)" in {
+    // A plain IOException whose hierarchy contains none of the listed names must NOT match,
+    // proving the list stays narrow rather than retrying every IOException.
     val predicate = new ExceptionClassNameFailurePredicate("ConnectionClosedException")
     predicate.test(new java.io.IOException("disk error")) shouldBe false
   }
