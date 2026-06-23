@@ -29,6 +29,14 @@ jobs:
         # Needed to extend the JVM memory size to avoid OutOfMemoryError for HTML test report
         run: echo "SBT_OPTS=-Xmx2G" >> $GITHUB_ENV
 
+      - name: Build assembly JARs for the docker cluster
+        # The docker-compose cluster bind-mounts the PPL/Flint/SQL-app assembly JARs
+        # ($PPL_JAR, $FLINT_JAR, $SQL_APP_JAR in docker/integ-test/.env) into the Spark
+        # containers. They must exist before EndToEndITSuite runs `docker compose up`,
+        # otherwise the Spark containers fail to start and the suite aborts on a
+        # connection-refused to the cluster.
+        run: sbt pplSparkIntegration/assembly flintSparkIntegration/assembly sparkSqlApplication/assembly
+
       - name: End-to-End Test
         run: sbt e2etest/test
 
