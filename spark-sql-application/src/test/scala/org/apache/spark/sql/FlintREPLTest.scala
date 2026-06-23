@@ -36,9 +36,9 @@ import org.apache.spark.sql.FlintREPLConfConstants.DEFAULT_QUERY_LOOP_EXECUTION_
 import org.apache.spark.sql.SessionUpdateMode.SessionUpdateMode
 import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.catalyst.ExtendedAnalysisException
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, EqualTo, Literal}
 import org.apache.spark.sql.catalyst.parser.ParseException
-import org.apache.spark.sql.catalyst.plans.logical.{LocalRelation, LogicalPlan}
+import org.apache.spark.sql.catalyst.plans.logical.{Filter, LocalRelation, LogicalPlan}
 import org.apache.spark.sql.catalyst.trees.Origin
 import org.apache.spark.sql.exception.{RedactedException, UnrecoverableException}
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -690,6 +690,54 @@ class FlintREPLTest
     result should include(
       "\"exception.type\":\"org.apache.spark.sql.catalyst.ExtendedAnalysisException\"")
     result should not include "RedactedException"
+  }
+
+  test(
+    "processQueryException redacts the reported CloudWatch plan leak but keeps the diagnostic") {
+    // Reproduces the exact reported leak: an ExtendedAnalysisException whose getMessage appends a
+    // resolved logical plan carrying customer values (account id, ARN, and the filter literals from
+    // the user's WHERE clause). The fix must drop the whole plan tree (everything after ";\n") yet
+    // keep the human-readable analysis diagnostic, including the column names, so the error stays
+    // debuggable without the filter values.
+    val mockFlintStatement = mock[FlintStatement]
+
+    // Column refs whose names embed the (fake) account id and ARN, plus the filter literals that
+    // Spark renders into the plan's Filter node.
+    val acctCol = AttributeReference("recipientAccountId_480909524268", StringType)()
+    val arnCol =
+      AttributeReference("arn_aws_logs_us_east_1_471112993047_aws_controltower", StringType)()
+    val filterValue = "vci-terraform-state-rnd-us-east-1"
+    val plan = Filter(EqualTo(arnCol, Literal(filterValue)), LocalRelation(acctCol, arnCol))
+
+    val exception = new ExtendedAnalysisException(
+      message = "[UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name " +
+        "`_CWLBasic_Alias_1`.`arn` cannot be resolved. Did you mean one of the following? " +
+        "[`_CWLBasic_Alias_0`.`arn`, `_CWLBasic_Alias_0`.`eventName`].",
+      line = Some(1),
+      startPosition = Some(295),
+      plan = Some(plan))
+
+    // Precondition: the raw message really leaks the account id, ARN, and filter value via the plan.
+    exception.getMessage should include("480909524268")
+    exception.getMessage should include("471112993047")
+    exception.getMessage should include(filterValue)
+
+    val result = FlintREPL.processQueryException(exception, mockFlintStatement)
+
+    // Redacted (not removed): the plan and every customer value it carried are gone ...
+    result should not include "480909524268"
+    result should not include "471112993047"
+    result should not include filterValue
+    result should not include "Filter"
+    result should not include "LocalRelation"
+    // ... but the diagnostic the team wants to keep for debugging survives intact.
+    result should include("Fail to analyze query. Cause:")
+    result should include("UNRESOLVED_COLUMN.WITH_SUGGESTION")
+    result should include("cannot be resolved")
+    result should include("Did you mean one of the following?")
+    result should include("line 1 pos 295")
+    result should include(
+      "\"exception.type\":\"org.apache.spark.sql.catalyst.ExtendedAnalysisException\"")
   }
 
   test(
