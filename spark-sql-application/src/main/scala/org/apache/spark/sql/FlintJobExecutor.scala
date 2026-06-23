@@ -26,7 +26,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.FlintREPL.instantiate
 import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.catalyst.parser.ParseException
-import org.apache.spark.sql.exception.UnrecoverableException
+import org.apache.spark.sql.exception.{RedactedException, UnrecoverableException}
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
 import org.apache.spark.sql.types._
@@ -452,6 +452,34 @@ trait FlintJobExecutor {
       CleanerFactory.cleaner(streaming))
   }
 
+  /**
+   * Returns an exception's message with customer query content removed, for compliance.
+   *
+   * `ExtendedAnalysisException` and `ParseException` (both [[AnalysisException]]) embed the
+   * logical plan / raw SQL in `getMessage`. For any [[AnalysisException]] we use
+   * `getSimpleMessage`, which Spark documents as emitting the diagnostic without the plan. For
+   * other throwables we keep only the first line as defense-in-depth (callers unwrap to the root
+   * cause before this is reached).
+   */
+  private[sql] def sanitizedMessage(t: Throwable): String = t match {
+    case ae: AnalysisException => ae.getSimpleMessage
+    case other => Option(other.getMessage).getOrElse("").split("\n", 2)(0)
+  }
+
+  /**
+   * Wraps a throwable so that only its [[sanitizedMessage]] is ever exposed (via getMessage /
+   * toString), while preserving the original exception type name and stack trace for debugging.
+   * This is the single redaction point at the catch site: the wrapper is passed to CustomLogging
+   * so customer query content cannot leak through either the `exception.message` attribute or the
+   * log4j stack trace, and the same sanitized message backs the persisted/forwarded error string.
+   */
+  private[sql] def redactThrowable(t: Throwable): Throwable = {
+    val redacted =
+      new RedactedException(t.getClass.getName, sanitizedMessage(t))
+    redacted.setStackTrace(t.getStackTrace)
+    redacted
+  }
+
   private def handleQueryException(
       t: Throwable,
       messagePrefix: String,
@@ -459,7 +487,10 @@ trait FlintJobExecutor {
       statusCode: Option[Int] = None): String = {
     throwableHandler.setThrowable(t)
 
-    val errorMessage = s"$messagePrefix: ${t.getMessage}"
+    // Redact once at the catch point. The same sanitized throwable backs both the persisted /
+    // forwarded error string (-> query result store and downstream consumers) and the driver logs.
+    val safeThrowable = redactThrowable(t)
+    val errorMessage = s"$messagePrefix: ${safeThrowable.getMessage}"
     val errorDetails = new java.util.LinkedHashMap[String, String]()
     errorDetails.put("message", errorMessage)
     errorSource.foreach(es => errorDetails.put("ErrorSource", es))
@@ -469,12 +500,13 @@ trait FlintJobExecutor {
     val errorJson = mapper.writeValueAsString(errorDetails)
     // Record the processed error message
     throwableHandler.setError(errorJson)
-    // CustomLogging will call log4j logger.error() underneath
+    // CustomLogging will call log4j logger.error() underneath. Pass the redacted throwable so the
+    // logical plan does not leak via the logged exception message or stack trace.
     statusCode match {
       case Some(code) =>
-        CustomLogging.logError(new OperationMessage(errorMessage, code), t)
+        CustomLogging.logError(new OperationMessage(errorMessage, code), safeThrowable)
       case None =>
-        CustomLogging.logError(errorMessage, t)
+        CustomLogging.logError(errorMessage, safeThrowable)
     }
 
     errorJson
