@@ -141,6 +141,16 @@ public final class MetricConstants {
     public static final String STREAMING_SUCCESS_METRIC = "streaming.success.count";
 
     /**
+     * Metric for tracking the count of pre-init warmup queries that completed successfully.
+     */
+    public static final String PREINIT_SUCCESS_METRIC = "preinit.success.count";
+
+    /**
+     * Metric for tracking the count of pre-init warmup queries that have failed.
+     */
+    public static final String PREINIT_FAILED_METRIC = "preinit.failed.count";
+
+    /**
      * Metric for tracking the count of failed heartbeat signals in streaming jobs.
      */
     public static final String STREAMING_HEARTBEAT_FAILED_METRIC = "streaming.heartbeat.failed.count";
