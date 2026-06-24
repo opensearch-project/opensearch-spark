@@ -1,14 +1,17 @@
 # Copyright OpenSearch Contributors
 # SPDX-License-Identifier: Apache-2.0
 
-FROM openjdk:21-jdk-bookworm
+# The openjdk Docker Hub images are deprecated and 21-jdk-bookworm no longer resolves.
+# eclipse-temurin:21-jdk-jammy is a maintained Debian-based JDK 21 drop-in.
+FROM eclipse-temurin:21-jdk-jammy
 
 WORKDIR /opt
 
 ENV HADOOP_HOME=/opt/hadoop-3.3.4
 ENV HIVE_HOME=/opt/apache-hive-2.3.9-bin
 
-#RUN apt-get update
+# eclipse-temurin does not ship curl (the old openjdk image did), so install it first.
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 RUN curl -L https://archive.apache.org/dist/hive/hive-2.3.9/apache-hive-2.3.9-bin.tar.gz | tar zxf -
 RUN curl -L https://archive.apache.org/dist/hadoop/common/hadoop-3.3.4/hadoop-3.3.4.tar.gz | tar zxf -
 RUN cp $HADOOP_HOME/share/hadoop/client/hadoop-client-api-3.3.4.jar $HIVE_HOME/lib/
