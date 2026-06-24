@@ -12,8 +12,7 @@ import java.util.concurrent.{ExecutionException, Future}
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
-import org.apache.http.HttpEntity
-import org.apache.http.HttpResponse
+import org.apache.http.{ConnectionClosedException, HttpEntity, HttpResponse, NoHttpResponseException}
 import org.apache.http.concurrent.FutureCallback
 import org.apache.http.impl.nio.client.{CloseableHttpAsyncClient, HttpAsyncClientBuilder}
 import org.apache.http.nio.protocol.{HttpAsyncRequestProducer, HttpAsyncResponseConsumer}
@@ -90,10 +89,45 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
       .shouldExecute(times(1))
   }
 
-  it should "not retry any exception by default" in {
+  it should "not retry a non-connection, non-listed exception by default" in {
+    // With no retry.exception_class_names configured, a generic exception that is neither a
+    // configured class nor a transient connection fault must not be retried.
     retryableClient
-      .whenThrow(new ConnectException)
+      .whenThrow(new IllegalStateException("boom"))
       .shouldExecute(times(1))
+  }
+
+  it should "retry transient connection exceptions by default (no config)" in {
+    // retry.exception_class_names defaults to the transient connection faults, matched by simple
+    // class name so it is independent of Apache HTTP client shading/relocation.
+    Seq(
+      new ConnectException("connect"),
+      new SocketTimeoutException("read timed out"),
+      new ConnectionClosedException("Connection is closed"),
+      new NoHttpResponseException("the target failed to respond"))
+      .foreach { ex =>
+        retryableClient
+          .whenThrow(ex)
+          .shouldExecute(times(DEFAULT_MAX_RETRIES + 1))
+      }
+  }
+
+  it should "retry a transient connection exception nested in the cause chain by default" in {
+    // Mirrors the real failure shape, where the connection fault is wrapped before it surfaces.
+    retryableClient
+      .whenThrow(
+        new RuntimeException("wrapper", new ConnectionClosedException("Connection is closed")))
+      .shouldExecute(times(DEFAULT_MAX_RETRIES + 1))
+  }
+
+  it should "retry a relocated/shaded connection exception by default via its simple name" in {
+    // The real runtime class is shaded/relocated (a different package, same simple name),
+    // which an FQN/isInstance match would miss. We simulate a relocated class: a different package
+    // but the same simple name must still match, since matching is by simple name.
+    retryableClient
+      .whenThrow(
+        new _root_.shaded.org.apache.http.ConnectionClosedException("Connection is closed"))
+      .shouldExecute(times(DEFAULT_MAX_RETRIES + 1))
   }
 
   it should "retry if exception is on the retryable exception list" in {
@@ -115,8 +149,19 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
   }
 
   it should "not retry if exception is not on the retryable exception list" in {
+    // Use a non-connection exception so it is absent from the defaulted connection-fault list,
+    // isolating the "not on the list" semantics.
     retryableClient
-      .whenThrow(new SocketTimeoutException)
+      .whenThrow(new IllegalStateException)
+      .shouldExecute(times(1))
+  }
+
+  it should "not retry transient connection exceptions when the list is overridden" in {
+    // Setting retry.exception_class_names overrides (replaces) the connection-fault default, so a
+    // connection exception no longer matches when it is not in the override.
+    retryableClient
+      .withOption("retry.exception_class_names", "java.lang.IllegalStateException")
+      .whenThrow(new ConnectException("connect"))
       .shouldExecute(times(1))
   }
 
