@@ -16,6 +16,13 @@ jobs:
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
 
+      - name: Free up disk space
+        # The integ-test docker images total ~10GB and saving/loading them needs headroom.
+        # GitHub runners ship with large toolchains this job does not use; remove them.
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL || true
+          df -h /
+
       - name: Set up JDK 11
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3
         with:
@@ -49,20 +56,23 @@ jobs:
 
       - name: Load or build integ-test docker images
         # Restore prebuilt images from the cache if present; otherwise build them with
-        # `docker compose build` and save them to the cache path for subsequent runs. Either
+        # `docker compose build` and save them (gzip-compressed) for subsequent runs. Either
         # way the images end up in the local docker image store, so the suite's
         # `docker compose up -d` reuses them instead of rebuilding.
         working-directory: docker/integ-test
         run: |
-          if [ -f /tmp/integ-test-images/images.tar ]; then
+          if [ -f /tmp/integ-test-images/images.tar.gz ]; then
             echo "Restoring integ-test images from cache"
-            docker load -i /tmp/integ-test-images/images.tar
+            gunzip -c /tmp/integ-test-images/images.tar.gz | docker load
           else
             echo "Building integ-test images (cache miss)"
             docker compose build
+            # The combined images are ~10GB uncompressed; the runner has limited free disk, so
+            # gzip the saved archive to keep it small enough to fit and cache.
             mkdir -p /tmp/integ-test-images
-            docker save -o /tmp/integ-test-images/images.tar \
-              integ-test-metastore integ-test-opensearch integ-test-spark integ-test-spark-worker integ-test-spark-submit
+            docker save \
+              integ-test-metastore integ-test-opensearch integ-test-spark integ-test-spark-worker integ-test-spark-submit \
+              | gzip > /tmp/integ-test-images/images.tar.gz
           fi
 
       - name: End-to-End Test

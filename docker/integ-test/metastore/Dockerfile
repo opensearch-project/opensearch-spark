@@ -7,17 +7,22 @@ FROM eclipse-temurin:21-jdk-jammy
 
 WORKDIR /opt
 
-ENV HADOOP_HOME=/opt/hadoop-3.3.4
+ENV HADOOP_HOME=/opt/hadoop-3.3.6
 ENV HIVE_HOME=/opt/apache-hive-2.3.9-bin
 
 # eclipse-temurin does not ship curl (the old openjdk image did), so install it first.
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# Hadoop is pulled from the dlcdn CDN (~115MB/s) rather than archive.apache.org (~0.2MB/s),
+# which cuts this download from ~50 min to seconds. dlcdn only keeps recent releases, so use
+# 3.3.6 (same 3.3.x line, compatible with Hive 2.3.9). Hive 2.x is archive-only.
 RUN curl -L https://archive.apache.org/dist/hive/hive-2.3.9/apache-hive-2.3.9-bin.tar.gz | tar zxf -
-RUN curl -L https://archive.apache.org/dist/hadoop/common/hadoop-3.3.4/hadoop-3.3.4.tar.gz | tar zxf -
-RUN cp $HADOOP_HOME/share/hadoop/client/hadoop-client-api-3.3.4.jar $HIVE_HOME/lib/
-RUN cp $HADOOP_HOME/share/hadoop/client/hadoop-client-runtime-3.3.4.jar $HIVE_HOME/lib/
-RUN cp $HADOOP_HOME/share/hadoop/tools/lib/hadoop-aws-3.3.4.jar $HIVE_HOME/lib/
-RUN cp $HADOOP_HOME/share/hadoop/tools/lib/aws-java-sdk-bundle-1.12.262.jar $HIVE_HOME/lib/
+RUN curl -L https://dlcdn.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz | tar zxf -
+# Copy by glob so the exact jar versions bundled with Hadoop (e.g. aws-java-sdk-bundle) do not
+# need to be hard-coded here.
+RUN cp $HADOOP_HOME/share/hadoop/client/hadoop-client-api-*.jar $HIVE_HOME/lib/
+RUN cp $HADOOP_HOME/share/hadoop/client/hadoop-client-runtime-*.jar $HIVE_HOME/lib/
+RUN cp $HADOOP_HOME/share/hadoop/tools/lib/hadoop-aws-*.jar $HIVE_HOME/lib/
+RUN cp $HADOOP_HOME/share/hadoop/tools/lib/aws-java-sdk-bundle-*.jar $HIVE_HOME/lib/
 
 RUN groupadd -f -r hive --gid=1000
 RUN useradd -r -g hive --uid=1000 -d ${HIVE_HOME} hive
