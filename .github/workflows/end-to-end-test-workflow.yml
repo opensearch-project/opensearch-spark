@@ -37,6 +37,34 @@ jobs:
         # connection-refused to the cluster.
         run: sbt pplSparkIntegration/assembly flintSparkIntegration/assembly sparkSqlApplication/assembly
 
+      - name: Cache integ-test docker images
+        # The integ-test metastore image downloads the Hadoop (~663MB) and Hive distributions
+        # from archive.apache.org, which is heavily throttled (~15-30 min each). Building the
+        # cluster images here and caching the layers keeps EndToEndITSuite's `docker compose up`
+        # from rebuilding them on every run (which otherwise blows past its startup timeout).
+        uses: actions/cache@v4
+        with:
+          path: /tmp/integ-test-images
+          key: integ-test-images-${{ hashFiles('docker/integ-test/**/Dockerfile', 'docker/integ-test/.env', 'docker/integ-test/docker-compose.yml') }}
+
+      - name: Load or build integ-test docker images
+        # Restore prebuilt images from the cache if present; otherwise build them with
+        # `docker compose build` and save them to the cache path for subsequent runs. Either
+        # way the images end up in the local docker image store, so the suite's
+        # `docker compose up -d` reuses them instead of rebuilding.
+        working-directory: docker/integ-test
+        run: |
+          if [ -f /tmp/integ-test-images/images.tar ]; then
+            echo "Restoring integ-test images from cache"
+            docker load -i /tmp/integ-test-images/images.tar
+          else
+            echo "Building integ-test images (cache miss)"
+            docker compose build
+            mkdir -p /tmp/integ-test-images
+            docker save -o /tmp/integ-test-images/images.tar \
+              integ-test-metastore integ-test-opensearch integ-test-spark integ-test-spark-worker integ-test-spark-submit
+          fi
+
       - name: End-to-End Test
         run: sbt e2etest/test
 
