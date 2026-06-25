@@ -42,7 +42,7 @@ jobs:
         # from archive.apache.org, which is heavily throttled (~15-30 min each). Building the
         # cluster images here and caching the layers keeps EndToEndITSuite's `docker compose up`
         # from rebuilding them on every run (which otherwise blows past its startup timeout).
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: /tmp/integ-test-images
           key: integ-test-images-${{ hashFiles('docker/integ-test/**/Dockerfile', 'docker/integ-test/.env', 'docker/integ-test/docker-compose.yml') }}
