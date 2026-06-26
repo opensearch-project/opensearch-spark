@@ -12,15 +12,13 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.TimeUnit;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
-import org.apache.http.impl.nio.conn.PoolingNHttpClientConnectionManager;
-import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
-import org.apache.http.nio.reactor.IOReactorException;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestClientBuilder;
 import org.opensearch.client.RestHighLevelClient;
@@ -172,20 +170,13 @@ public class OpenSearchClientUtils {
   }
 
   /**
-   * Configures the async connection manager to validate pooled connections after a period of
-   * inactivity. Without this, connections closed by the server while idle remain in the pool and
-   * are reused, surfacing as ConnectionClosedException. Validating before reuse lets the client
-   * detect and discard such connections instead of failing the request.
+   * Bounds the lifetime of pooled connections. Without a time-to-live, connections closed by the
+   * server while idle remain in the pool and are reused, surfacing as ConnectionClosedException.
+   * Expiring connections after this duration lets the client discard them instead of reusing a
+   * connection the server has already closed.
    */
   private static HttpAsyncClientBuilder configureConnectionManager(HttpAsyncClientBuilder builder, FlintOptions options) {
-    try {
-      PoolingNHttpClientConnectionManager connectionManager =
-          new PoolingNHttpClientConnectionManager(new DefaultConnectingIOReactor());
-      connectionManager.setValidateAfterInactivity(options.getInactivityLimitMillis());
-      return builder.setConnectionManager(connectionManager);
-    } catch (IOReactorException e) {
-      throw new RuntimeException("Failed to create async connection manager", e);
-    }
+    return builder.setConnectionTimeToLive(options.getInactivityLimitMillis(), TimeUnit.MILLISECONDS);
   }
 
   /**
