@@ -18,6 +18,9 @@ import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
+import org.apache.http.impl.nio.conn.PoolingNHttpClientConnectionManager;
+import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
+import org.apache.http.nio.reactor.IOReactorException;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestClientBuilder;
 import org.opensearch.client.RestHighLevelClient;
@@ -139,6 +142,7 @@ public class OpenSearchClientUtils {
           HttpAsyncClientBuilder delegate = builder.addInterceptorLast(
               new ResourceBasedAWSRequestSigningApacheInterceptor(
                   options.getServiceName(), options.getRegion(), customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), systemIndexName));
+          delegate = configureConnectionManager(delegate, options);
           return RetryableHttpAsyncClient.builder(delegate, options);
         }
     );
@@ -153,6 +157,7 @@ public class OpenSearchClientUtils {
         new UsernamePasswordCredentials(options.getUsername(), options.getPassword()));
     restClientBuilder.setHttpClientConfigCallback(builder -> {
       HttpAsyncClientBuilder delegate = builder.setDefaultCredentialsProvider(credentialsProvider);
+      delegate = configureConnectionManager(delegate, options);
       return RetryableHttpAsyncClient.builder(delegate, options);
     });
 
@@ -162,8 +167,25 @@ public class OpenSearchClientUtils {
   private static RestClientBuilder configureDefaultAuth(RestClientBuilder restClientBuilder, FlintOptions options) {
     // No auth
     restClientBuilder.setHttpClientConfigCallback(delegate ->
-        RetryableHttpAsyncClient.builder(delegate, options));
+        RetryableHttpAsyncClient.builder(configureConnectionManager(delegate, options), options));
     return restClientBuilder;
+  }
+
+  /**
+   * Configures the async connection manager to validate pooled connections after a period of
+   * inactivity. Without this, connections closed by the server while idle remain in the pool and
+   * are reused, surfacing as ConnectionClosedException. Validating before reuse lets the client
+   * detect and discard such connections instead of failing the request.
+   */
+  private static HttpAsyncClientBuilder configureConnectionManager(HttpAsyncClientBuilder builder, FlintOptions options) {
+    try {
+      PoolingNHttpClientConnectionManager connectionManager =
+          new PoolingNHttpClientConnectionManager(new DefaultConnectingIOReactor());
+      connectionManager.setValidateAfterInactivity(options.getInactivityLimitMillis());
+      return builder.setConnectionManager(connectionManager);
+    } catch (IOReactorException e) {
+      throw new RuntimeException("Failed to create async connection manager", e);
+    }
   }
 
   /**
