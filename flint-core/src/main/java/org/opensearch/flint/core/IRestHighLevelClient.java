@@ -111,7 +111,7 @@ public interface IRestHighLevelClient extends Closeable {
             CustomLogging.logError(new OperationMessage("OpenSearch Operation failed.", statusCode), openSearchException);
         } else {
             AmazonServiceException amazonServiceException = extractAmazonServiceException(t);
-            if (amazonServiceException != null) {
+            if (amazonServiceException != null && amazonServiceException.getStatusCode() != 0) {
                 statusCode = amazonServiceException.getStatusCode();
             } else {
                 // Fall back to parsing the status code from the exception message when it is
@@ -141,7 +141,7 @@ public interface IRestHighLevelClient extends Closeable {
     static OpenSearchException extractOpenSearchException(Throwable e) {
         if (e instanceof OpenSearchException) {
             return (OpenSearchException) e;
-        } else if (e.getCause() == null) {
+        } else if (e.getCause() == null || e.getCause() == e) {
             return null;
         } else {
             return extractOpenSearchException(e.getCause());
@@ -158,15 +158,15 @@ public interface IRestHighLevelClient extends Closeable {
     static AmazonServiceException extractAmazonServiceException(Throwable e) {
         if (e instanceof AmazonServiceException) {
             return (AmazonServiceException) e;
-        } else if (e.getCause() == null) {
+        } else if (e.getCause() == null || e.getCause() == e) {
             return null;
         } else {
             return extractAmazonServiceException(e.getCause());
         }
     }
 
-    /** Pattern matching an HTTP status code embedded in an exception message, e.g. "Status Code: 403". */
-    Pattern STATUS_CODE_PATTERN = Pattern.compile("Status Code:\\s*(\\d{3})");
+    /** Pattern matching an HTTP 4xx/5xx status code embedded in an exception message, e.g. "Status Code: 403". */
+    Pattern STATUS_CODE_PATTERN = Pattern.compile("Status Code:\\s*([45]\\d{2})");
 
     /**
      * Extracts an HTTP status code embedded in the message text of the given Throwable or any of
@@ -186,6 +186,7 @@ public interface IRestHighLevelClient extends Closeable {
                     return Integer.parseInt(matcher.group(1));
                 }
             }
+            if (current.getCause() == current) break;
             current = current.getCause();
         }
         return 500;
