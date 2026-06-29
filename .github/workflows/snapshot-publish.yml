@@ -25,7 +25,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
         id: checkout
 
       # Extract version from build.sbt file
@@ -46,13 +46,13 @@ jobs:
           echo "Using commit ID: ${COMMIT_ID}"
 
       - name: Set up JDK 11
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3
         with:
           distribution: 'temurin'
           java-version: 11
 
       - name: Set up SBT
-        uses: sbt/setup-sbt@v1
+        uses: sbt/setup-sbt@2e222825582620cc38d2a54e674f3c01b7c14f5d # v1
 
       - name: Publish to Local Maven
         run: |
@@ -65,13 +65,13 @@ jobs:
           echo "Checking published artifacts:"
           find $HOME/.m2/repository/org/opensearch/ -name "*${{ steps.extract_version.outputs.version }}*" || echo "No artifacts found with the expected version"
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
         with:
           repository: 'opensearch-project/opensearch-build'
           path: 'build'
 
       - name: Load secrets from 1Password
-        uses: 1password/load-secrets-action@v2
+        uses: 1password/load-secrets-action@581a835fb51b8e7ec56b71cf2ffddd7e68bb25e0 # v2
         with:
           export-env: true
         env:
@@ -80,7 +80,7 @@ jobs:
           MAVEN_SNAPSHOTS_S3_ROLE: op://opensearch-infra-secrets/maven-snapshots-s3/role
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
         with:
           role-to-assume: ${{ env.MAVEN_SNAPSHOTS_S3_ROLE }}
           aws-region: us-east-1
