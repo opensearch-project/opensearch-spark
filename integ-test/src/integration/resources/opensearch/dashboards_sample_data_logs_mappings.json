@@ -1,0 +1,44 @@
+{
+  "properties": {
+    "referer": { "type": "keyword" },
+    "request": { "type": "text" },
+    "agent": { "type": "text" },
+    "extension": { "type": "text" },
+    "memory": { "type": "double" },
+    "ip": { "type": "ip" },
+    "index": { "type": "text" },
+    "message": { "type": "text" },
+    "url": { "type": "text" },
+    "tags": { "type": "text" },
+    "geo": {
+      "type": "object",
+      "properties": {
+        "srcdest": { "type": "keyword" },
+        "src": { "type": "keyword" },
+        "dest": { "type": "keyword" },
+        "coordinates": { "type": "geo_point" }
+      }
+    },
+    "@timestamp": { "type": "date" },
+    "utc_time": { "type": "date" },
+    "bytes": { "type": "long" },
+    "machine": {
+      "type": "object",
+      "properties": {
+        "os": { "type": "keyword" },
+        "ram": { "type": "long" }
+      }
+    },
+    "response": { "type": "keyword" },
+    "clientip": { "type": "ip" },
+    "host": { "type": "text" },
+    "event": {
+      "type": "object",
+      "properties": {
+        "dataset": { "type": "keyword" }
+      }
+    },
+    "phpmemory": { "type": "long" },
+    "timestamp": { "type": "date" }
+  }
+}
