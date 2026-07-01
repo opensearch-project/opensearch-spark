@@ -5,6 +5,7 @@
 
 package org.opensearch.flint.core;
 
+import com.amazonaws.AmazonServiceException;
 import org.opensearch.OpenSearchException;
 import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.bulk.BulkRequest;
@@ -38,6 +39,8 @@ import org.opensearch.flint.core.metrics.MetricsUtil;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Interface for wrapping the OpenSearch High Level REST Client with additional functionality,
@@ -102,11 +105,20 @@ public interface IRestHighLevelClient extends Closeable {
      */
     static void recordOperationFailure(String metricNamePrefix, Throwable t) {
         OpenSearchException openSearchException = extractOpenSearchException(t);
-        int statusCode = openSearchException != null ? openSearchException.status().getStatus() : 500;
+        int statusCode;
         if (openSearchException != null) {
+            statusCode = openSearchException.status().getStatus();
             CustomLogging.logError(new OperationMessage("OpenSearch Operation failed.", statusCode), openSearchException);
         } else {
-            CustomLogging.logError("OpenSearch Operation failed with an exception.", t);
+            AmazonServiceException amazonServiceException = extractAmazonServiceException(t);
+            if (amazonServiceException != null && amazonServiceException.getStatusCode() != 0) {
+                statusCode = amazonServiceException.getStatusCode();
+            } else {
+                // Fall back to parsing the status code from the exception message when it is
+                // not available on a typed exception. Defaults to 500 if none can be parsed.
+                statusCode = extractStatusCodeFromMessage(t);
+            }
+            CustomLogging.logError(new OperationMessage("OpenSearch Operation failed with an exception.", statusCode), t);
         }
         if (statusCode == 403) {
             String forbiddenErrorMetricName = metricNamePrefix + ".403.count";
@@ -129,10 +141,54 @@ public interface IRestHighLevelClient extends Closeable {
     static OpenSearchException extractOpenSearchException(Throwable e) {
         if (e instanceof OpenSearchException) {
             return (OpenSearchException) e;
-        } else if (e.getCause() == null) {
+        } else if (e.getCause() == null || e.getCause() == e) {
             return null;
         } else {
             return extractOpenSearchException(e.getCause());
         }
+    }
+
+    /**
+     * Extracts an AmazonServiceException from the given Throwable.
+     * Checks if the Throwable is an instance of AmazonServiceException or caused by one.
+     *
+     * @param e the exception to be checked
+     * @return the extracted AmazonServiceException, or null if not found
+     */
+    static AmazonServiceException extractAmazonServiceException(Throwable e) {
+        if (e instanceof AmazonServiceException) {
+            return (AmazonServiceException) e;
+        } else if (e.getCause() == null || e.getCause() == e) {
+            return null;
+        } else {
+            return extractAmazonServiceException(e.getCause());
+        }
+    }
+
+    /** Pattern matching an HTTP 4xx/5xx status code embedded in an exception message, e.g. "Status Code: 403". */
+    Pattern STATUS_CODE_PATTERN = Pattern.compile("Status Code:\\s*([45]\\d{2})");
+
+    /**
+     * Extracts an HTTP status code embedded in the message text of the given Throwable or any of
+     * its causes. This handles exceptions that carry the status code only as part of the message
+     * string rather than on a typed exception.
+     *
+     * @param e the exception to be checked
+     * @return the parsed status code, or 500 if none can be found in the cause chain
+     */
+    static int extractStatusCodeFromMessage(Throwable e) {
+        Throwable current = e;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null) {
+                Matcher matcher = STATUS_CODE_PATTERN.matcher(message);
+                if (matcher.find()) {
+                    return Integer.parseInt(matcher.group(1));
+                }
+            }
+            if (current.getCause() == current) break;
+            current = current.getCause();
+        }
+        return 500;
     }
 }
