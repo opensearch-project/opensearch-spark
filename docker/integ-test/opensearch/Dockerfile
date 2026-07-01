@@ -1,7 +1,10 @@
 # Copyright OpenSearch Contributors
 # SPDX-License-Identifier: Apache-2.0
 
-FROM opensearchproject/opensearch:latest
+# Pinned via OPENSEARCH_VERSION (docker/integ-test/.env) so the cluster and the configuration
+# script (datasource API, Osd-Version header) stay in sync; :latest drifts over time.
+ARG OPENSEARCH_VERSION=2.18.0
+FROM opensearchproject/opensearch:${OPENSEARCH_VERSION}
 
 USER root
 
