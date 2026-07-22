@@ -23,4 +23,4 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 
 | Maintainer      | GitHub ID                                       |
 |-----------------|-------------------------------------------------|
-| Vamsi Manohar   | [vamsi-amazon](https://github.com/vamsi-amazon) |
+| Vamsi Manohar   | [vamsimanohar](https://github.com/vamsimanohar) |
