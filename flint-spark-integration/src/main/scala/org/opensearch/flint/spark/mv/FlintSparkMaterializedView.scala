@@ -193,7 +193,8 @@ object FlintSparkMaterializedView extends Logging {
    *   source table names
    */
   def extractSourceTablesFromQuery(spark: SparkSession, query: String): Array[String] = {
-    logInfo(s"Extracting source tables from query $query")
+    // Do not log the query text: it carries customer content that must not be exposed to operators.
+    logInfo("Extracting source tables from query")
     val sourceTables = spark.sessionState.sqlParser
       .parsePlan(query)
       .collect { case relation: UnresolvedRelation =>
