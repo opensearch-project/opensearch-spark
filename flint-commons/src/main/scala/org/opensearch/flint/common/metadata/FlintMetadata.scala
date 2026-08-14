@@ -47,6 +47,10 @@ case class FlintMetadata(
   require(name != null, "name is required")
   require(kind != null, "kind is required")
   require(source != null, "source is required")
+
+  override def toString: String =
+    s"FlintMetadata($version, $name, $kind, source=<redacted>, $indexedColumns, " +
+      s"$options, $properties, $schema, $latestId, $latestLogEntry, $indexSettings)"
 }
 
 object FlintMetadata {
