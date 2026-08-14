@@ -24,7 +24,7 @@ publish_snapshots_and_update_metadata() {
   # Prepare publish-snapshot.sh from opensearch-build repository
   echo "Preparing publish-snapshot.sh script..."
   mkdir -p build/resources/publish/
-  cp build/publish/publish-snapshot.sh build/resources/publish/
+  cp build/scripts/legacy/publish/publish-snapshot.sh build/resources/publish/
   chmod +x build/resources/publish/publish-snapshot.sh
 
   # Copy artifacts from local Maven repository
