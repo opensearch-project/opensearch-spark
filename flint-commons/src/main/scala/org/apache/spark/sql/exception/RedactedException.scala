@@ -9,13 +9,17 @@ package org.apache.spark.sql.exception
  * A throwable that exposes only an already-sanitized message while preserving the original
  * exception's type name and stack trace.
  *
- * Spark's `ExtendedAnalysisException` and `ParseException` embed customer query content in their
- * `getMessage` (the logical plan tree and the raw SQL text respectively). The caller computes a
- * sanitized message (e.g. via `AnalysisException.getSimpleMessage`, which Spark documents as
- * emitting the diagnostic without the plan) and wraps the original throwable in this class before
- * it reaches any logger or is forwarded downstream. That ensures the query content cannot leak
- * through `getMessage`, `getLocalizedMessage`, `toString`, or the rendered stack trace, while
- * still keeping the human-readable diagnostic and frames needed to debug where the error arose.
+ * Spark's `AnalysisException`, `ExtendedAnalysisException`, and `ParseException` embed customer
+ * query content in their `getMessage` and `getSimpleMessage` (the offending column/table/view and
+ * alias names, "Did you mean" suggestions, line and position text, the appended logical plan
+ * tree, and the raw SQL text in a `== SQL ==` block). The caller computes a sanitized message
+ * that is derived only from Spark's error-conditions catalog -- the stable `errorClass`, the
+ * static message template for that class with its `<param>` placeholders left un-interpolated,
+ * and, for a generic failure, a safe cause class name -- and wraps the original throwable in this
+ * class before it reaches any logger or is forwarded downstream. That ensures the query content
+ * cannot leak through `getMessage`, `getLocalizedMessage`, `toString`, or the rendered stack
+ * trace, while still keeping the exception type name and frames needed to debug where the error
+ * arose.
  *
  * @param originalClassName
  *   fully qualified name of the original exception type, surfaced in the rendered stack trace

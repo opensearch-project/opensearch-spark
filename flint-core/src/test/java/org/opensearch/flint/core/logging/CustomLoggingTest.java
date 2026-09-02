@@ -74,4 +74,27 @@ public class CustomLoggingTest {
             assertEquals("Exception message should match", throwable.getMessage(), attributes.get("exception.message"));
         }
     }
+
+    @Test
+    public void testOperationMessageIncludesStructuredErrorContext() {
+        OperationMessage message = new OperationMessage(
+                testMsg,
+                403,
+                "OPENSEARCH_WRITE_ACCESS_DENIED",
+                "org.opensearch.OpenSearchException",
+                "request-123",
+                "extended-request-456");
+        Throwable redacted = new RuntimeException("safe message");
+
+        Map<String, Object> event = CustomLogging.constructLogEventMap("ERROR", message, redacted);
+        Map<String, Object> body = (Map<String, Object>) event.get("body");
+        Map<String, Object> attributes = (Map<String, Object>) event.get("attributes");
+
+        assertEquals(403, body.get("statusCode"));
+        assertEquals("OPENSEARCH_WRITE_ACCESS_DENIED", body.get("errorCode"));
+        assertEquals("request-123", body.get("requestId"));
+        assertEquals("extended-request-456", body.get("extendedRequestId"));
+        assertEquals("org.opensearch.OpenSearchException", attributes.get("exception.type"));
+        assertEquals("safe message", attributes.get("exception.message"));
+    }
 }

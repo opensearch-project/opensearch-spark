@@ -98,8 +98,12 @@ case class WarmpoolJob(
       }
     } catch {
       case t: Throwable =>
-        // Record and rethrow in query loop
-        throwableHandler.recordThrowable(s"Query loop execution failed.", t)
+        // Record and rethrow in query loop. The escaped throwable can be a query failure, so it
+        // must be redacted for the driver log while preserved for classification and rethrow.
+        throwableHandler.recordQueryThrowable(
+          s"Query loop execution failed.",
+          "Query loop execution failed",
+          t)
         cleanUpResources()
         throw t
     }
