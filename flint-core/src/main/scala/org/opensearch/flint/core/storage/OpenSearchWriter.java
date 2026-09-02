@@ -61,7 +61,11 @@ public class OpenSearchWriter extends FlintWriter {
                 RequestOptions.DEFAULT);
         // fail entire bulk request even one doc failed.
         if (response.hasFailures() && Arrays.stream(response.getItems()).anyMatch(itemResp -> !isCreateConflict(itemResp))) {
-          throw new RuntimeException(response.buildFailureMessage());
+          // Raise a typed exception carrying the status and OpenSearch exception types as fields.
+          // buildFailureMessage() is intentionally not propagated: it flattens the classification
+          // into text that downstream consumers then have to pattern-match, and its per-item
+          // reasons can echo document content.
+          throw OpenSearchBulkWriteException.from(indexName, response, itemResp -> !isCreateConflict(itemResp));
         }
       }
     } catch (IOException e) {

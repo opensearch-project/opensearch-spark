@@ -21,10 +21,15 @@ import org.mockito.{ArgumentMatchersSugar, Mockito}
 import org.mockito.Mockito.{atLeastOnce, doNothing, never, times, verify, when}
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
+import org.opensearch.{OpenSearchException, OpenSearchSecurityException}
+import org.opensearch.action.DocWriteRequest.OpType
+import org.opensearch.action.bulk.{BulkItemResponse, BulkResponse}
+import org.opensearch.action.bulk.BulkItemResponse.Failure
 import org.opensearch.action.get.GetResponse
 import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession, SessionStates}
 import org.opensearch.flint.common.scheduler.model.LangType
-import org.opensearch.flint.core.storage.{FlintReader, OpenSearchReader, OpenSearchUpdater}
+import org.opensearch.flint.core.storage.{FlintReader, OpenSearchBulkWriteException, OpenSearchReader, OpenSearchUpdater}
+import org.opensearch.rest.RestStatus
 import org.opensearch.search.sort.SortOrder
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatestplus.mockito.MockitoSugar
@@ -586,7 +591,7 @@ class FlintREPLTest
     val expectedError = (
       """{"message":"Fail to read data from Glue. Cause: Access denied in AWS Glue service. Please check permissions. (Service: AWSGlue; """ +
         """Status Code: 400; Error Code: AccessDeniedException; Request ID: null; Proxy: null)",""" +
-        """"ErrorSource":"AWSGlue","statusCode":"400","exception.type":"com.amazonaws.services.glue.model.AccessDeniedException"}"""
+        """"ErrorSource":"AWSGlue","statusCode":"400","errorCode":"GLUE_ACCESS_DENIED","exception.type":"com.amazonaws.services.glue.model.AccessDeniedException"}"""
     )
 
     val result = FlintREPL.processQueryException(exception, mockFlintStatement)
@@ -609,11 +614,78 @@ class FlintREPLTest
     val result = FlintREPL.processQueryException(exception, mockFlintCommand)
 
     val expectedError =
-      """{"message":"Fail to run query. Cause: Access denied in AWS Glue service. Please check permissions.","exception.type":"java.lang.SecurityException"}"""
+      """{"message":"Fail to run query. Cause: Access denied in AWS Glue service. Please check permissions.","errorCode":"UNKNOWN_ERROR","exception.type":"java.lang.SecurityException"}"""
 
     result shouldEqual expectedError
     verify(mockFlintCommand).fail()
     verify(mockFlintCommand).error = Some(expectedError)
+  }
+
+  // Contract test for temporary legacy downstream compatibility.
+  //
+  // Existing error translations may key this failure on two things: an exact exception.type of
+  // java.lang.RuntimeException and this message regex:
+  //   .*type=security_exception,\s*reason=OpenSearch exception\s*\[type=authorization_exception.*
+  // This test pins both on the persisted wire record so a future change that "cleans up" the
+  // concrete class name or compatibility token fails in CI instead of silently bypassing those
+  // translations. The durable contract is the structured errorCode/statusCode fields; remove this
+  // test with the temporary shim once downstream consumers use those fields.
+  test("processQueryException keeps legacy wire compatibility for a bulk-write auth failure") {
+    val forbidden = new BulkItemResponse(
+      0,
+      OpType.INDEX,
+      new Failure(
+        "myindex",
+        "doc-1",
+        new OpenSearchSecurityException("no permissions"),
+        RestStatus.FORBIDDEN))
+    val bulkWriteException = OpenSearchBulkWriteException.from(
+      "myindex",
+      new BulkResponse(Array(forbidden), 100L),
+      _ => true)
+
+    val mockFlintStatement = mock[FlintStatement]
+    val result = FlintREPL.processQueryException(bulkWriteException, mockFlintStatement)
+
+    // Structured, forward-looking contract: the durable classification.
+    result should include(""""errorCode":"OPENSEARCH_WRITE_ACCESS_DENIED"""")
+    result should include(""""statusCode":"403"""")
+    // Temporary downstream compatibility: the concrete class name is not on the wire.
+    result should include(""""exception.type":"java.lang.RuntimeException"""")
+    result should not include "OpenSearchBulkWriteException"
+
+    // Exact reproduction of the legacy translation match: exact RuntimeException type plus the
+    // canonical security/authorization sequence. This is intentionally stricter than checking for
+    // status 403 or either token independently.
+    val legacyExceptionTypeMatch = """"exception\.type":"java\.lang\.RuntimeException"""".r
+    val legacyAuthorizationTokenMatch =
+      """.*type=security_exception,\s*reason=OpenSearch exception\s*\[type=authorization_exception.*""".r
+    legacyExceptionTypeMatch.findFirstIn(result) shouldBe defined
+    legacyAuthorizationTokenMatch.findFirstIn(result) shouldBe defined
+  }
+
+  test("processQueryException does not translate a cluster-block 403 as access denied") {
+    val blocked = new BulkItemResponse(
+      0,
+      OpType.INDEX,
+      new Failure(
+        "myindex",
+        "doc-1",
+        new OpenSearchException(
+          "OpenSearch exception [type=cluster_block_exception, reason=index read-only]"),
+        RestStatus.FORBIDDEN))
+    val bulkWriteException = OpenSearchBulkWriteException.from(
+      "myindex",
+      new BulkResponse(Array(blocked), 100L),
+      _ => true)
+
+    val result = FlintREPL.processQueryException(bulkWriteException, mock[FlintStatement])
+
+    result should include(""""statusCode":"403"""")
+    result should include(""""errorCode":"OPENSEARCH_WRITE_ERROR"""")
+    result should include("type=cluster_block_exception")
+    result should not include "type=authorization_exception"
+    result should not include "reason=OpenSearch exception"
   }
 
   // A logical plan whose rendered string carries identifiable "customer" query content -- column
@@ -637,12 +709,16 @@ class FlintREPLTest
     s should not include "LocalRelation"
   }
 
-  test("processQueryException should strip the logical plan from an ExtendedAnalysisException") {
+  test(
+    "processQueryException keeps the analysis diagnostic in the persisted record while dropping " +
+      "the appended plan") {
     val mockFlintStatement = mock[FlintStatement]
 
     // ExtendedAnalysisException is the analysis-failure type whose
     //   getMessage = getSimpleMessage + ";\n" + plan.toString
-    // appends the logical plan tree (which carries customer query content).
+    // appends the logical plan tree (which carries customer query content). The persisted record
+    // keeps the actionable diagnostic (errorClass, identifier, suggestion) from getSimpleMessage but
+    // must drop the appended plan tree.
     val plan = customerPlan()
     val exception = new ExtendedAnalysisException(
       message = "[UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name " +
@@ -657,13 +733,18 @@ class FlintREPLTest
 
     val result = FlintREPL.processQueryException(exception, mockFlintStatement)
 
-    // The plan tree MUST be gone.
+    // The appended plan tree MUST be gone ...
     assertNoPlanContent(result)
-    // The diagnostic (error class, suggestion, position) MUST be preserved so customers can fix it.
-    result should include("Fail to analyze query. Cause:")
+    // ... and no sqlState token is appended to the customer-visible text ...
+    result should not include "sqlState=["
+    // ... but the actionable diagnostic a customer needs is retained.
     result should include("UNRESOLVED_COLUMN.WITH_SUGGESTION")
     result should include("Did you mean one of the following?")
-    result should include("line 1 pos 295")
+    result should include("`alias_0`.`col`")
+    result should include("Fail to analyze query. Cause:")
+    result should include(""""errorCode":"QUERY_ANALYSIS_ERROR"""")
+    result should include(
+      "\"exception.type\":\"org.apache.spark.sql.catalyst.ExtendedAnalysisException\"")
 
     verify(mockFlintStatement).fail()
     verify(mockFlintStatement).error = Some(result)
@@ -693,59 +774,67 @@ class FlintREPLTest
   }
 
   test(
-    "processQueryException redacts the reported CloudWatch plan leak but keeps the diagnostic") {
+    "processQueryException drops the appended plan and its customer values while keeping the diagnostic") {
     // Reproduces the exact reported leak: an ExtendedAnalysisException whose getMessage appends a
     // resolved logical plan carrying customer values (account id, ARN, and the filter literals from
-    // the user's WHERE clause). The fix must drop the whole plan tree (everything after ";\n") yet
-    // keep the human-readable analysis diagnostic, including the column names, so the error stays
-    // debuggable without the filter values.
+    // the user's WHERE clause). The customer / persisted policy drops the whole appended plan tree
+    // (and every value it carried) while keeping the actionable diagnostic from getSimpleMessage. No
+    // sqlState is appended.
     val mockFlintStatement = mock[FlintStatement]
 
     // Column refs whose names embed the (fake) account id and ARN, plus the filter literals that
     // Spark renders into the plan's Filter node.
-    val acctCol = AttributeReference("recipientAccountId_480909524268", StringType)()
+    val acctCol = AttributeReference("recipientAccountId_CANARY_ACCOUNT_A", StringType)()
     val arnCol =
-      AttributeReference("arn_aws_logs_us_east_1_471112993047_aws_controltower", StringType)()
-    val filterValue = "vci-terraform-state-rnd-us-east-1"
+      AttributeReference(
+        "arn_aws_logs_us_east_1_CANARY_ACCOUNT_B_synthetic_log_group",
+        StringType)()
+    val filterValue = "CANARY_FILTER_RESOURCE"
     val plan = Filter(EqualTo(arnCol, Literal(filterValue)), LocalRelation(acctCol, arnCol))
 
     val exception = new ExtendedAnalysisException(
       message = "[UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name " +
-        "`_CWLBasic_Alias_1`.`arn` cannot be resolved. Did you mean one of the following? " +
-        "[`_CWLBasic_Alias_0`.`arn`, `_CWLBasic_Alias_0`.`eventName`].",
+        "`synthetic_source_alias_1`.`arn` cannot be resolved. Did you mean one of the following? " +
+        "[`synthetic_source_alias_0`.`arn`, `synthetic_source_alias_0`.`eventName`].",
       line = Some(1),
       startPosition = Some(295),
       plan = Some(plan))
 
     // Precondition: the raw message really leaks the account id, ARN, and filter value via the plan.
-    exception.getMessage should include("480909524268")
-    exception.getMessage should include("471112993047")
+    exception.getMessage should include("CANARY_ACCOUNT_A")
+    exception.getMessage should include("CANARY_ACCOUNT_B")
     exception.getMessage should include(filterValue)
 
     val result = FlintREPL.processQueryException(exception, mockFlintStatement)
 
-    // Redacted (not removed): the plan and every customer value it carried are gone ...
-    result should not include "480909524268"
-    result should not include "471112993047"
+    // The appended plan and every customer value it carried are gone ...
+    result should not include "CANARY_ACCOUNT_A"
+    result should not include "CANARY_ACCOUNT_B"
     result should not include filterValue
     result should not include "Filter"
     result should not include "LocalRelation"
-    // ... but the diagnostic the team wants to keep for debugging survives intact.
-    result should include("Fail to analyze query. Cause:")
+    // ... and no sqlState is appended ...
+    result should not include "sqlState=["
+    // ... but the diagnostic that names the offending alias/column and the suggestion is retained,
+    // because that is the information a customer needs to fix the query.
     result should include("UNRESOLVED_COLUMN.WITH_SUGGESTION")
-    result should include("cannot be resolved")
+    result should include("synthetic_source_alias")
     result should include("Did you mean one of the following?")
-    result should include("line 1 pos 295")
+    result should include("Fail to analyze query. Cause:")
+    result should include(""""errorCode":"QUERY_ANALYSIS_ERROR"""")
     result should include(
       "\"exception.type\":\"org.apache.spark.sql.catalyst.ExtendedAnalysisException\"")
   }
 
   test(
-    "processQueryException should strip the SQL text from a ParseException (== SQL == block)") {
+    "processQueryException keeps the parser diagnostic but drops the raw == SQL == query block") {
     val mockFlintStatement = mock[FlintStatement]
 
     // ParseException.getMessage embeds the raw SQL command in a "== SQL ==" block. The command is
-    // the verbatim customer query and must not be persisted.
+    // the verbatim customer query and must not be persisted. The customer policy keeps the parser
+    // diagnostic from getSimpleMessage (which excludes the == SQL == block) and appends no sqlState.
+    // The secret lives in a string literal, so it appears only in the == SQL == echo, not in the
+    // diagnostic; the trailing token is what the parser reports as offending.
     val customerSql =
       "SELECT * FROM logs WHERE arn LIKE '%example-secret-bucket%' SYNTAX_ERROR_HERE"
     val origin = Origin(line = Some(1), startPosition = Some(60))
@@ -761,13 +850,15 @@ class FlintREPLTest
 
     val result = FlintREPL.processQueryException(exception, mockFlintStatement)
 
-    // The SQL text and the == SQL == block MUST be gone.
+    // The verbatim SQL and the == SQL == block MUST be gone, and no sqlState is appended.
     result should not include "example-secret-bucket"
     result should not include "== SQL =="
     result should not include "SELECT * FROM logs"
-    // The human-readable syntax diagnostic MUST be preserved.
-    result should include("Syntax error")
-    result should include("Syntax error at or near 'SYNTAX_ERROR_HERE'")
+    result should not include "sqlState=["
+    // The parser diagnostic (including the offending token) is retained so the customer can fix it.
+    result should include("Syntax error at or near")
+    result should include("Syntax error:")
+    result should include(""""errorCode":"QUERY_SYNTAX_ERROR"""")
   }
 
   test(
@@ -788,13 +879,16 @@ class FlintREPLTest
 
     assertNoPlanContent(result)
     result should include("UNRESOLVED_COLUMN")
+    result should include(""""errorCode":"QUERY_ANALYSIS_ERROR"""")
   }
 
   test(
-    "processQueryException should keep an AnalysisException whose message has newlines but no plan (getSimpleMessage, plan = None)") {
+    "processQueryException keeps an AnalysisException diagnostic with no plan, dropping nothing " +
+      "but appending no sqlState") {
     val mockFlintStatement = mock[FlintStatement]
 
-    // ExtendedAnalysisException with plan = None: getMessage == getSimpleMessage, no plan annotation.
+    // ExtendedAnalysisException with plan = None: getMessage == getSimpleMessage. The customer
+    // policy keeps this diagnostic (it is what the customer needs) and appends no sqlState.
     val exception = new ExtendedAnalysisException(
       message = "Table or view not found: my_table",
       line = Some(2),
@@ -805,14 +899,19 @@ class FlintREPLTest
 
     result should include("Fail to analyze query. Cause:")
     result should include("Table or view not found: my_table")
-    result should include("line 2 pos 5")
+    result should not include "sqlState=["
+    result should include(""""errorCode":"QUERY_ANALYSIS_ERROR"""")
     assertNoPlanContent(result)
   }
 
   test(
-    "processQueryException should strip embedded newlines from SparkException messages with stack-trace-like content") {
+    "processQueryException keeps the first-line diagnostic of a SparkException, dropping the " +
+      "multi-line detail") {
     val mockFlintStatement = mock[FlintStatement]
 
+    // A bare SparkException carries no error class. The customer policy keeps its first-line
+    // diagnostic (so downstream message rules and customers still see the summary) while the
+    // embedded stack frames on later lines are dropped.
     val sparkErrorWithEmbeddedDetails =
       "Job aborted due to stage failure: Task 0 in stage 1.0 failed\n" +
         "\tat org.apache.spark.scheduler.DAGScheduler.org\n" +
@@ -821,12 +920,13 @@ class FlintREPLTest
 
     val result = FlintREPL.processQueryException(exception, mockFlintStatement)
 
-    // Anything after the first \n must be dropped - internal frames may carry literals.
+    // The multi-line detail below the first line is gone ...
     result should not include "DAGScheduler"
     result should not include "secret-token-abc123"
-    // First line (human-readable summary) is preserved.
-    result should include("Spark exception. Cause:")
+    // ... but the first-line diagnostic and the structured classification are kept.
     result should include("Job aborted due to stage failure")
+    result should include("Spark exception. Cause:")
+    result should include(""""errorCode":"SPARK_QUERY_ERROR"""")
   }
 
   test(
@@ -861,10 +961,83 @@ class FlintREPLTest
     result should not include "Cause: null"
   }
 
+  // ---- Resilience of the error-handling path itself (DEFECT-1348) ----
+  // These pin that processQueryException never lets a hostile throwable turn error handling into a
+  // secondary, unhandled failure that masks the original query error. Synthetic CANARY_1348_ data
+  // only; no customer content.
+
+  test(
+    "processQueryException should not propagate a secondary failure when getMessage throws " +
+      "(DEFECT-1348-01, CANARY_1348_HOSTILE_GETMESSAGE_THROWS)") {
+    val mockFlintStatement = mock[FlintStatement]
+
+    // Hostile throwable whose getMessage() throws. The final `case t: Throwable` branch used to
+    // read `t.getMessage` unguarded, so this secondary exception propagated out of
+    // processQueryException and masked the original error.
+    val exception = new RuntimeException {
+      override def getMessage: String =
+        throw new RuntimeException("CANARY_1348_HOSTILE_GETMESSAGE_THROWS")
+    }
+
+    // Must complete without throwing and produce a parseable, redacted error record.
+    val result = FlintREPL.processQueryException(exception, mockFlintStatement)
+
+    result should include("Fail to run query. Cause:")
+    result should include("error details were redacted")
+    // The hostile canary from getMessage must never leak into the persisted error.
+    result should not include "CANARY_1348_HOSTILE_GETMESSAGE_THROWS"
+    verify(mockFlintStatement).fail()
+    verify(mockFlintStatement).error = Some(result)
+  }
+
+  test(
+    "processQueryException should not propagate a secondary failure when getCause throws " +
+      "(DEFECT-1348-02, CANARY_1348_HOSTILE_GETCAUSE_THROWS)") {
+    val mockFlintStatement = mock[FlintStatement]
+
+    // Hostile throwable whose getCause() throws. getRootCause's loop walked getCause unguarded, so
+    // this secondary exception propagated out of processQueryException before any redaction ran.
+    val exception = new RuntimeException("CANARY_1348_HOSTILE_GETCAUSE_OUTER") {
+      override def getCause: Throwable =
+        throw new RuntimeException("CANARY_1348_HOSTILE_GETCAUSE_THROWS")
+    }
+
+    val result = FlintREPL.processQueryException(exception, mockFlintStatement)
+
+    result should include("Fail to run query. Cause:")
+    // The outer single-line non-analysis message is retained per current policy (a floor).
+    result should include("CANARY_1348_HOSTILE_GETCAUSE_OUTER")
+    // The secondary getCause() failure canary must never surface.
+    result should not include "CANARY_1348_HOSTILE_GETCAUSE_THROWS"
+    verify(mockFlintStatement).fail()
+    verify(mockFlintStatement).error = Some(result)
+  }
+
+  test(
+    "processQueryException should handle a MetaException with a null message without throwing " +
+      "(DEFECT-1348-03, CANARY_1348_METAEX_NULL_MESSAGE)") {
+    val mockFlintStatement = mock[FlintStatement]
+
+    // Default ctor => null message. The class IS MetaException, so the Glue-access-denied guard's
+    // left operand is true and the short-circuit did not protect the null errMsg: `errMsg.contains`
+    // dereferenced null and NPE'd instead of falling through to the generic redaction path.
+    val exception = new org.apache.hadoop.hive.metastore.api.MetaException()
+
+    val result = FlintREPL.processQueryException(exception, mockFlintStatement)
+
+    result should include("Fail to run query. Cause:")
+    result should include(
+      "\"exception.type\":\"org.apache.hadoop.hive.metastore.api.MetaException\"")
+    // A null message must not surface the literal "null" string.
+    result should not include "Cause: null"
+    verify(mockFlintStatement).fail()
+    verify(mockFlintStatement).error = Some(result)
+  }
+
   // ---- Direct unit tests for the redaction helpers (FlintJobExecutor via the FlintREPL object) ----
 
   test(
-    "sanitizedMessage uses getSimpleMessage for ExtendedAnalysisException, dropping the plan") {
+    "customerMessage keeps a hand-built ExtendedAnalysisException diagnostic while dropping the plan") {
     val plan = customerPlan()
     val exception = new ExtendedAnalysisException(
       message = "[UNRESOLVED_COLUMN] cannot resolve `arn`",
@@ -872,17 +1045,36 @@ class FlintREPLTest
       startPosition = Some(295),
       plan = Some(plan))
 
-    val sanitized = FlintREPL.sanitizedMessage(exception)
+    val customer = FlintREPL.customerMessage(exception)
 
-    sanitized shouldBe exception.getSimpleMessage
-    sanitized should include("UNRESOLVED_COLUMN")
-    sanitized should include("line 1 pos 295")
-    assertNoPlanContent(sanitized)
-    // The raw getMessage carries the plan; sanitizedMessage must be strictly shorter / different.
-    sanitized should not equal exception.getMessage
+    // The diagnostic is retained (it is what a customer needs), no sqlState is appended ...
+    customer should include("UNRESOLVED_COLUMN")
+    customer should include("`arn`")
+    customer should not include "sqlState=["
+    // ... but the appended plan is gone.
+    assertNoPlanContent(customer)
+    customer should not equal exception.getMessage
   }
 
-  test("sanitizedMessage uses getSimpleMessage for ParseException, dropping the SQL text") {
+  test("operatorLogMessage reduces a hand-built ExtendedAnalysisException to a bare label") {
+    val plan = customerPlan()
+    val exception = new ExtendedAnalysisException(
+      message = "[UNRESOLVED_COLUMN] cannot resolve `arn`",
+      line = Some(1),
+      startPosition = Some(295),
+      plan = Some(plan))
+
+    val log = FlintREPL.operatorLogMessage(exception)
+
+    // No catalog errorClass on this hand-built instance => bare label; nothing from the message.
+    log shouldBe "[SPARK_ERROR]"
+    log should not include "UNRESOLVED_COLUMN"
+    log should not include "arn"
+    assertNoPlanContent(log)
+  }
+
+  test(
+    "customerMessage keeps a hand-built ParseException parser detail while dropping the SQL text") {
     val customerSql = "SELECT secret_col FROM t WHERE x LIKE '%example-secret%' BADTOKEN"
     val origin = Origin(line = Some(1), startPosition = Some(40))
     val exception = new ParseException(
@@ -891,33 +1083,41 @@ class FlintREPLTest
       start = origin,
       stop = origin)
 
-    val sanitized = FlintREPL.sanitizedMessage(exception)
+    val customer = FlintREPL.customerMessage(exception)
 
-    sanitized shouldBe exception.getSimpleMessage
-    sanitized should include("Syntax error at or near 'BADTOKEN'")
-    sanitized should not include "example-secret"
-    sanitized should not include "== SQL =="
-    sanitized should not include "secret_col"
+    // The parser diagnostic is retained; the verbatim SQL and its == SQL == block are not, and no
+    // sqlState is appended.
+    customer should include("Syntax error at or near")
+    customer should not include "== SQL =="
+    customer should not include "secret_col"
+    customer should not include "example-secret"
+    customer should not include "sqlState=["
   }
 
   test(
-    "sanitizedMessage keeps only the first line for non-analysis throwables (defense-in-depth)") {
+    "operatorLogMessage emits a safe label and class name, never the message, for a non-analysis " +
+      "throwable with no recognized type") {
     val exception = new RuntimeException("summary line\nsecret-detail-line\nmore-secret")
-    FlintREPL.sanitizedMessage(exception) shouldBe "summary line"
+    // The shipped floor logged the raw first line; that line is customer-derived for a query
+    // failure, so it is now replaced by a bare label plus the deepest cause's safe class name.
+    FlintREPL.operatorLogMessage(exception) shouldBe
+      "[UNKNOWN_ERROR] type=[java.lang.RuntimeException]"
+    FlintREPL.operatorLogMessage(exception) should not include "summary line"
+    FlintREPL.operatorLogMessage(exception) should not include "secret-detail-line"
   }
 
-  test("sanitizedMessage returns empty string for a null message without throwing") {
-    FlintREPL.sanitizedMessage(new RuntimeException()) shouldBe ""
-    FlintREPL.sanitizedMessage(new NullPointerException()) shouldBe ""
+  test("customerMessage returns empty string for a null message without throwing") {
+    FlintREPL.customerMessage(new RuntimeException()) shouldBe ""
+    FlintREPL.customerMessage(new NullPointerException()) shouldBe ""
   }
 
-  test("sanitizedMessage leaves a single-line message untouched") {
+  test("customerMessage leaves a single-line message untouched") {
     val exception = new IllegalArgumentException("bad arg value 42")
-    FlintREPL.sanitizedMessage(exception) shouldBe "bad arg value 42"
+    FlintREPL.customerMessage(exception) shouldBe "bad arg value 42"
   }
 
   test(
-    "redactThrowable exposes only the sanitized message via getMessage/toString while preserving the original type name and stack trace") {
+    "redactThrowable exposes only the strict operator-log message via getMessage/toString while preserving the original type name and stack trace") {
     val plan = customerPlan()
     val original = new ExtendedAnalysisException(
       message = "[UNRESOLVED_COLUMN] cannot resolve `arn`",
@@ -927,10 +1127,11 @@ class FlintREPLTest
 
     val redacted = FlintREPL.redactThrowable(original)
 
-    // getMessage / getLocalizedMessage / toString must never expose the plan -- these are the
-    // exact accessors CustomLogging (exception.message attribute) and log4j (stack-trace header)
-    // read from.
-    redacted.getMessage shouldBe original.getSimpleMessage
+    // getMessage / getLocalizedMessage / toString must never expose the plan -- these are the exact
+    // accessors CustomLogging (exception.message attribute) and log4j (stack-trace header) read
+    // from. The log message is the operator-log bare label (no catalog errorClass on this hand-built
+    // instance), not the customer diagnostic.
+    redacted.getMessage shouldBe "[SPARK_ERROR]"
     assertNoPlanContent(redacted.getMessage)
     assertNoPlanContent(redacted.getLocalizedMessage)
     assertNoPlanContent(redacted.toString)
@@ -948,6 +1149,133 @@ class FlintREPLTest
   test("RedactedException.toString falls back to the type name when the message is null") {
     val redacted = new RedactedException("com.example.FooException", null)
     redacted.toString shouldBe "com.example.FooException"
+  }
+
+  // ---- Production-path operator-log redaction through processQueryException / FlintREPL ----
+  //
+  // processQueryException unwraps to the root cause for classification, the customer message, and
+  // the persisted exception.type, but hands the ORIGINAL throwable to the operator-log channel.
+  // These tests exercise that wiring: the persisted record (the return value) is asserted for the
+  // customer channel and routing, while FlintREPL.operatorLogMessage / FlintREPL.redactThrowable --
+  // the exact values handleQueryException builds and hands to CustomLogging (body.message and the
+  // exception.message / toString accessors) -- are asserted for the operator-log channel.
+
+  test(
+    "a SparkException wrapping a non-Spark cause keeps a strict operator log and prefers the " +
+      "structured cause class over any message token") {
+    val mockFlintStatement = mock[FlintStatement]
+    val causeDetail = "hostile_regex_detail_CANARY"
+    val cause = new java.util.regex.PatternSyntaxException(causeDetail, "[", 0)
+    // The wrapper message names a *different* platform class in text; the structured immediate cause
+    // must win, proving the message is not scanned when a real cause is present.
+    val wrapper = new SparkException(
+      "Job aborted: org.apache.spark.SparkArithmeticException at stage wrapper_secret_CANARY",
+      cause)
+
+    val result = FlintREPL.processQueryException(wrapper, mockFlintStatement)
+    // Persisted / customer record: routing unwraps to the root cause, so the wrapper's own message
+    // never reaches it, and the classification / exception.type are the root cause's.
+    result should not include "wrapper_secret_CANARY"
+    result should include("\"exception.type\":\"java.util.regex.PatternSyntaxException\"")
+    result should include(""""errorCode":"UNKNOWN_ERROR"""")
+
+    // Operator-log channel: the original wrapper is a SparkThrowable, so it routes to the strict
+    // label plus the bounded, safe *structured* cause class -- not the raw first-line floor, and not
+    // the SparkArithmeticException token that only appears in the wrapper's message text.
+    val expected = "[SPARK_ERROR] cause=[java.util.regex.PatternSyntaxException]"
+    FlintREPL.operatorLogMessage(wrapper) shouldBe expected
+    val redacted = FlintREPL.redactThrowable(wrapper)
+    redacted.getMessage shouldBe expected
+    redacted.getMessage should not include causeDetail
+    redacted.getMessage should not include "wrapper_secret_CANARY"
+    redacted.getMessage should not include "SparkArithmeticException"
+    // The original wrapper type stays recoverable for debugging without leaking its message.
+    redacted.toString should include("SparkException")
+  }
+
+  test("a SparkException whose getCause throws stays bounded and strict on the production path") {
+    val mockFlintStatement = mock[FlintStatement]
+    val wrapper = new SparkException("boom_first_line_CANARY") {
+      override def getCause: Throwable = throw new RuntimeException("secondary_failure_CANARY")
+    }
+
+    // getRootCause treats a throwing getCause() as "no further cause", so routing stays on the
+    // SparkException and the secondary failure never surfaces.
+    val result = FlintREPL.processQueryException(wrapper, mockFlintStatement)
+    result should not include "secondary_failure_CANARY"
+    result should include(""""errorCode":"SPARK_QUERY_ERROR"""")
+
+    FlintREPL.operatorLogMessage(wrapper) shouldBe "[SPARK_ERROR]"
+    val redacted = FlintREPL.redactThrowable(wrapper)
+    redacted.getMessage shouldBe "[SPARK_ERROR]"
+    redacted.getMessage should not include "secondary_failure_CANARY"
+    redacted.getMessage should not include "boom_first_line_CANARY"
+  }
+
+  test(
+    "a self-referencing SparkException cause is cycle-safe and strict on the production path") {
+    val mockFlintStatement = mock[FlintStatement]
+    val selfReferencing = new SparkException("cycle_first_line_CANARY") {
+      override def getCause: Throwable = this
+    }
+
+    noException should be thrownBy {
+      FlintREPL.processQueryException(selfReferencing, mockFlintStatement)
+    }
+    FlintREPL.operatorLogMessage(selfReferencing) shouldBe "[SPARK_ERROR]"
+    FlintREPL.redactThrowable(selfReferencing).getMessage shouldBe "[SPARK_ERROR]"
+  }
+
+  test(
+    "operatorLogMessage recovers an allowlisted platform class token from a generic SparkException " +
+      "message only when no structured cause exists, emitting the token and nothing else") {
+    // The review case where a generic SparkException names the underlying platform exception only in
+    // its message text (no structured cause). The strict label recovers just the allowlisted class
+    // token; the surrounding message -- including the trailing detail -- is never emitted.
+    val wrapper = new SparkException(
+      "Job aborted due to stage failure\n" +
+        "Lost task 1.0 in stage 2.0 (TID 3) (executor 4): " +
+        "java.util.regex.PatternSyntaxException: Unclosed group detail_CANARY")
+
+    val log = FlintREPL.operatorLogMessage(wrapper)
+    log shouldBe "[SPARK_ERROR] cause=[java.util.regex.PatternSyntaxException]"
+    log should not include "Unclosed group"
+    log should not include "detail_CANARY"
+    FlintREPL.redactThrowable(wrapper).getMessage shouldBe log
+  }
+
+  test(
+    "operatorLogMessage rejects a non-allowlisted (customer/application) class token in a generic " +
+      "SparkException message") {
+    val wrapper = new SparkException(
+      "Job failed: com.customer.java.util.SecretLeakException: sensitive_detail_CANARY")
+
+    val log = FlintREPL.operatorLogMessage(wrapper)
+    log shouldBe "[SPARK_ERROR]"
+    log should not include "com.customer"
+    log should not include "java.util.SecretLeakException"
+    log should not include "sensitive_detail_CANARY"
+  }
+
+  test("operatorLogMessage handles the multi-line DAGScheduler review case") {
+    val wrapper = new SparkException(
+      "Job aborted due to stage failure: Task 6 failed\n" +
+        "Lost task 6.3 (executor 1):\n" +
+        "java.util.regex.PatternSyntaxException: Illegal character range detail_CANARY")
+
+    val log = FlintREPL.operatorLogMessage(wrapper)
+    log shouldBe "[SPARK_ERROR] cause=[java.util.regex.PatternSyntaxException]"
+    log should not include "Illegal character range"
+    log should not include "detail_CANARY"
+  }
+
+  test("operatorLogMessage does not scan customer detail after the framed exception class") {
+    val wrapper = new SparkException(
+      "Job aborted due to stage failure\n" +
+        "Lost task 1.0 in stage 2.0 (TID 3) (executor 4): " +
+        "com.customer.BoomException: customer value java.util.regex.PatternSyntaxException")
+
+    FlintREPL.operatorLogMessage(wrapper) shouldBe "[SPARK_ERROR]"
   }
 
   test("Doc Exists and excludeJobIds is an ArrayList Containing JobId") {
