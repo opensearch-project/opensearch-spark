@@ -87,7 +87,14 @@ public class CustomLogging {
         attributes.put("clientId", CLIENT_ID);
 
         if (throwable != null) {
-            attributes.put("exception.type", throwable.getClass().getName());
+            String exceptionType = throwable.getClass().getName();
+            if (content instanceof OperationMessage) {
+                String originalType = ((OperationMessage) content).getExceptionType();
+                if (originalType != null) {
+                    exceptionType = originalType;
+                }
+            }
+            attributes.put("exception.type", exceptionType);
             attributes.put("exception.message", throwable.getMessage());
         }
 
@@ -109,11 +116,21 @@ public class CustomLogging {
         if (content instanceof Message) {
             Message message = (Message) content;
             body.put("message", message.getFormattedMessage());
-            if (content instanceof OperationMessage && message.getParameters().length > 0) {
-                body.put("statusCode", message.getParameters()[0]);
+            if (content instanceof OperationMessage) {
+                OperationMessage operation = (OperationMessage) content;
+                putIfPresent(body, "statusCode", operation.getStatusCode());
+                putIfPresent(body, "errorCode", operation.getErrorCode());
+                putIfPresent(body, "requestId", operation.getRequestId());
+                putIfPresent(body, "extendedRequestId", operation.getExtendedRequestId());
             }
         } else {
             body.put("message", content.toString());
+        }
+    }
+
+    private static void putIfPresent(Map<String, Object> target, String key, Object value) {
+        if (value != null) {
+            target.put(key, value);
         }
     }
 

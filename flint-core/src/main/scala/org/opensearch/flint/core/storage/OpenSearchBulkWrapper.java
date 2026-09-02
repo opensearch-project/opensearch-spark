@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.opensearch.OpenSearchException;
 import org.opensearch.action.DocWriteRequest;
 import org.opensearch.action.bulk.BulkItemResponse;
 import org.opensearch.action.bulk.BulkRequest;
@@ -180,8 +181,15 @@ public class OpenSearchBulkWrapper {
     if (retryableStatusCodes.contains(itemResp.getFailure().getStatus().getStatus())) {
       return true;
     } else {
-      LOG.info("Found non-retryable failure in bulk response: " + itemResp.getFailure().getStatus()
-          + ", " + itemResp.getFailure().toString());
+      // Log only the HTTP status and the OpenSearch exception type name. Failure.toString() renders
+      // the full per-item reason, which can echo document field values and generated ids, so it is
+      // never logged.
+      BulkItemResponse.Failure failure = itemResp.getFailure();
+      String type = failure.getCause() == null
+          ? "unknown"
+          : OpenSearchException.getExceptionName(failure.getCause());
+      LOG.info("Found non-retryable failure in bulk response: status=" + failure.getStatus()
+          + ", type=" + type);
       return false;
     }
   }

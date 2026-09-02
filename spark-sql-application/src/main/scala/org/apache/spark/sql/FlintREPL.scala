@@ -375,8 +375,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
           lastCanPickCheckTime = updatedLastCanPickCheckTime
         } catch {
           case t: Throwable =>
-            // Record and rethrow in query loop
-            throwableHandler.recordThrowable(s"Query loop execution failed.", t)
+            // Record and rethrow in query loop. The escaped throwable can be a query failure, so
+            // it must not be logged raw; recordQueryThrowable redacts it for the driver log while
+            // preserving the throwable for classification and rethrow.
+            throwableHandler.recordQueryThrowable(
+              s"Query loop execution failed.",
+              "Query loop execution failed",
+              t)
             throw t
         } finally {
           statementsExecutionManager.terminateStatementExecution()
@@ -450,7 +455,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
       jobStartTime: Long,
       sessionTimerContext: Timer.Context): Unit = {
     val error = s"Session error: ${t.getMessage}"
-    throwableHandler.recordThrowable(error, t)
+    // A session-level failure can wrap an escaped query throwable, so `t` and its rendered message
+    // must not reach the driver log raw. The persisted session `error` field is unchanged; only
+    // the log is redacted.
+    throwableHandler.recordQueryThrowable(error, "Session error", t)
 
     try {
       refreshSessionState(
@@ -463,8 +471,9 @@ object FlintREPL extends Logging with FlintJobExecutor {
         Some(error))
     } catch {
       case t: Throwable =>
-        throwableHandler.recordThrowable(
+        throwableHandler.recordQueryThrowable(
           s"Failed to update session state. Original error: $error",
+          "Failed to update session state",
           t)
     }
 
@@ -612,8 +621,11 @@ object FlintREPL extends Logging with FlintJobExecutor {
       // e.g., maybe due to authentication service connection issue
       // or invalid catalog (e.g., we are operating on data not defined in provided data source)
       case e: Throwable =>
-        throwableHandler.recordThrowable(
+        // Result-writing failure. The persisted cause keeps the actionable detail, but neither the
+        // raw throwable nor its rendered message may reach the driver log.
+        throwableHandler.recordQueryThrowable(
           s"""Fail to write result of ${flintStatement}, cause: ${e.getMessage}""",
+          "Fail to write query result",
           e)
         flintStatement.fail()
     } finally {
@@ -696,7 +708,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         // driver logs. queryId is an opaque identifier, consistent with FlintStatement.toString
         // which also omits the query.
         val error = s"Executing query with id ${flintStatement.queryId} timed out"
-        CustomLogging.logError(error, e)
+        CustomLogging.logError(error, redactThrowable(e))
         Some(
           handleCommandTimeout(
             applicationId,
@@ -770,7 +782,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         } catch {
           case e: TimeoutException =>
             val error = s"Query execution preparation timed out"
-            CustomLogging.logError(error, e)
+            CustomLogging.logError(error, redactThrowable(e))
             dataToWrite = Some(
               handleCommandTimeout(
                 applicationId,
@@ -783,7 +795,12 @@ object FlintREPL extends Logging with FlintJobExecutor {
                 startTime))
           case NonFatal(e) =>
             val error = s"An unexpected error occurred: ${e.getMessage}"
-            throwableHandler.recordThrowable(error, e)
+            // Query execution / preparation failure: redact for the driver log while keeping the
+            // persisted diagnostic used to build the failed-command result.
+            throwableHandler.recordQueryThrowable(
+              error,
+              "Unexpected error during query execution",
+              e)
             dataToWrite = Some(
               handleCommandFailureAndGetFailedData(
                 applicationId,
