@@ -140,7 +140,13 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite with Matchers {
 
     // Await to store exception and verify if it's as expected
     flint.flintIndexMonitor.awaitMonitor(Some(testSkippingFlintIndex))
-    outputError should include("OpenSearchException")
+    val error = outputError
+    error should include("OpenSearch bulk write failed: 1 of 1 bulk items failed")
+    error should include("statusCode=[403]")
+    error should include("type=cluster_block_exception")
+    error should not include testSkippingFlintIndex
+    error should not include "index blocked by"
+    error should not include "OpenSearchException"
 
     deleteTestIndex(testSkippingFlintIndex)
   }

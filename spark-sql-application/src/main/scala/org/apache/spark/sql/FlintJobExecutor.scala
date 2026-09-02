@@ -9,6 +9,8 @@ import java.util.Locale
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.atomic.AtomicInteger
 
+import scala.util.control.NonFatal
+
 import com.amazonaws.services.glue.model.{AccessDeniedException, AWSGlueException}
 import com.amazonaws.services.s3.model.AmazonS3Exception
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -19,6 +21,7 @@ import org.opensearch.flint.core.IRestHighLevelClient
 import org.opensearch.flint.core.logging.{CustomLogging, ExceptionMessages, OperationMessage}
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
+import org.opensearch.flint.core.storage.OpenSearchBulkWriteException
 import play.api.libs.json._
 
 import org.apache.spark.{SparkConf, SparkException}
@@ -26,7 +29,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.FlintREPL.instantiate
 import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.catalyst.parser.ParseException
-import org.apache.spark.sql.exception.{RedactedException, UnrecoverableException}
+import org.apache.spark.sql.exception.UnrecoverableException
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
 import org.apache.spark.sql.types._
@@ -452,69 +455,81 @@ trait FlintJobExecutor {
       CleanerFactory.cleaner(streaming))
   }
 
-  /**
-   * Returns an exception's message with customer query content removed, for compliance.
-   *
-   * `ExtendedAnalysisException` and `ParseException` (both [[AnalysisException]]) embed the
-   * logical plan / raw SQL in `getMessage`. For any [[AnalysisException]] we use
-   * `getSimpleMessage`, which Spark documents as emitting the diagnostic without the plan. For
-   * other throwables we keep only the first line as defense-in-depth (callers unwrap to the root
-   * cause before this is reached).
-   */
-  private[sql] def sanitizedMessage(t: Throwable): String = t match {
-    case ae: AnalysisException => ae.getSimpleMessage
-    case other => Option(other.getMessage).getOrElse("").split("\n", 2)(0)
-  }
+  /** Persisted/forwarded message. See [[ErrorSanitizer.customerMessage]]. */
+  private[sql] def customerMessage(t: Throwable): String = ErrorSanitizer.customerMessage(t)
 
-  /**
-   * Wraps a throwable so that only its [[sanitizedMessage]] is ever exposed (via getMessage /
-   * toString), while preserving the original exception type name and stack trace for debugging.
-   * This is the single redaction point at the catch site: the wrapper is passed to CustomLogging
-   * so customer query content cannot leak through either the `exception.message` attribute or the
-   * log4j stack trace, and the same sanitized message backs the persisted/forwarded error string.
-   */
-  private[sql] def redactThrowable(t: Throwable): Throwable = {
-    val redacted =
-      new RedactedException(t.getClass.getName, sanitizedMessage(t))
-    redacted.setStackTrace(t.getStackTrace)
-    redacted
-  }
+  /** Driver-log message. See [[ErrorSanitizer.operatorLogMessage]]. */
+  private[sql] def operatorLogMessage(t: Throwable): String = ErrorSanitizer.operatorLogMessage(t)
+
+  /** Log-safe throwable wrapper. See [[ErrorSanitizer.redactThrowable]]. */
+  private[sql] def redactThrowable(t: Throwable): Throwable = ErrorSanitizer.redactThrowable(t)
 
   private def handleQueryException(
       t: Throwable,
       messagePrefix: String,
       errorSource: Option[String] = None,
-      statusCode: Option[Int] = None): String = {
+      statusCode: Option[Int] = None,
+      // Wrapper used for strict operator classification; defaults to the persisted root cause.
+      originalThrowable: Throwable = null): String = {
     throwableHandler.setThrowable(t)
 
-    // Redact once at the catch point. The same sanitized throwable backs both the persisted /
-    // forwarded error string (-> query result store and downstream consumers) and the driver logs.
-    val safeThrowable = redactThrowable(t)
-    val errorMessage = s"$messagePrefix: ${safeThrowable.getMessage}"
+    // Keep wrappers so a task-failure SparkException cannot fall through to a raw-message floor.
+    val logThrowable = if (originalThrowable == null) t else originalThrowable
+
+    // Persist one actionable line; log only strict operator-safe classification and templates.
+    val persistedMessage = s"$messagePrefix: ${customerMessage(t)}"
+    val logMessage = s"$messagePrefix: ${operatorLogMessage(logThrowable)}"
+    val logSafeThrowable = redactThrowable(logThrowable)
+    val classification = ErrorSanitizer.classify(t)
+    // Compute one status so persisted and operator records agree.
+    val effectiveStatusCode: Option[Int] = statusCode.orElse(classification.statusCode)
     val errorDetails = new java.util.LinkedHashMap[String, String]()
-    errorDetails.put("message", errorMessage)
+    errorDetails.put("message", persistedMessage)
     errorSource.foreach(es => errorDetails.put("ErrorSource", es))
-    statusCode.foreach(code => errorDetails.put("statusCode", code.toString))
-    errorDetails.put("exception.type", t.getClass.getName)
+    effectiveStatusCode.foreach(code => errorDetails.put("statusCode", code.toString))
+    errorDetails.put("errorCode", classification.errorCode)
+    // Compatibility shim: legacy authorization rules require RuntimeException plus the canonical
+    // message token. Remove after downstream consumers use errorCode/statusCode.
+    val persistedExceptionType = t match {
+      case _: OpenSearchBulkWriteException => classOf[RuntimeException].getName
+      case _ => t.getClass.getName
+    }
+    errorDetails.put("exception.type", persistedExceptionType)
 
     val errorJson = mapper.writeValueAsString(errorDetails)
-    // Record the processed error message
     throwableHandler.setError(errorJson)
-    // CustomLogging will call log4j logger.error() underneath. Pass the redacted throwable so the
-    // logical plan does not leak via the logged exception message or stack trace.
-    statusCode match {
-      case Some(code) =>
-        CustomLogging.logError(new OperationMessage(errorMessage, code), safeThrowable)
-      case None =>
-        CustomLogging.logError(errorMessage, safeThrowable)
-    }
+
+    val operatorContext = ErrorSanitizer.operatorLogContext(logThrowable)
+    val operationMessage = new OperationMessage(
+      logMessage,
+      effectiveStatusCode.map(Int.box).orNull,
+      classification.errorCode,
+      logThrowable.getClass.getName,
+      operatorContext.requestId.orNull,
+      operatorContext.extendedRequestId.orNull)
+    CustomLogging.logError(operationMessage, logSafeThrowable)
 
     errorJson
   }
 
   def getRootCause(t: Throwable): Throwable = {
-    if (t.getCause == null) t
-    else getRootCause(t.getCause)
+    // Walk to the deepest cause, guarding against a cyclic chain (a throwable whose cause is
+    // itself, or a longer loop). This runs on the error-handling path, where a naive recursion
+    // would StackOverflow on such a chain and mask the original failure with a secondary error.
+    // Tail-recursive, so it compiles to a loop and does not grow the stack. Mirrors the
+    // cycle-safety already relied on by ErrorSanitizer.classify.
+    @scala.annotation.tailrec
+    def loop(current: Throwable, seen: Set[Throwable]): Throwable = {
+      // getCause runs on the error-handling path; a hostile throwable whose getCause() throws
+      // would otherwise propagate a secondary failure out of processQueryException and mask the
+      // original query error. Treat a throwing getCause() as "no further cause" and stop here.
+      val cause =
+        try current.getCause
+        catch { case NonFatal(_) => null }
+      if (cause == null || seen.contains(cause)) current
+      else loop(cause, seen + current)
+    }
+    loop(t, Set.empty)
   }
 
   /**
@@ -522,16 +537,24 @@ trait FlintJobExecutor {
    * metadata
    */
   def processQueryException(throwable: Throwable): String = {
+    // Classification, the customer message, and the persisted exception.type are built from the
+    // unwrapped root cause below. The operator log, in contrast, is handed the original `throwable`
+    // (via `originalThrowable`) so an enclosing wrapper is still visible to the strict redaction and
+    // a wrapped non-Spark cause cannot reach the raw first-line log floor.
     getRootCause(throwable) match {
       case r: ParseException =>
-        handleQueryException(r, ExceptionMessages.SyntaxErrorPrefix)
+        handleQueryException(
+          r,
+          ExceptionMessages.SyntaxErrorPrefix,
+          originalThrowable = throwable)
       case r: AmazonS3Exception =>
         incrementCounter(MetricConstants.S3_ERR_CNT_METRIC)
         handleQueryException(
           r,
           ExceptionMessages.S3ErrorPrefix,
           Some(r.getServiceName),
-          Some(r.getStatusCode))
+          Some(r.getStatusCode),
+          originalThrowable = throwable)
       case r: AWSGlueException =>
         incrementCounter(MetricConstants.GLUE_ERR_CNT_METRIC)
         // Redact Access denied in AWS Glue service
@@ -544,20 +567,40 @@ trait FlintJobExecutor {
           r,
           ExceptionMessages.GlueErrorPrefix,
           Some(r.getServiceName),
-          Some(r.getStatusCode))
+          Some(r.getStatusCode),
+          originalThrowable = throwable)
       case r: AnalysisException =>
-        handleQueryException(r, ExceptionMessages.QueryAnalysisErrorPrefix)
+        handleQueryException(
+          r,
+          ExceptionMessages.QueryAnalysisErrorPrefix,
+          originalThrowable = throwable)
       case r: SparkException =>
-        handleQueryException(r, ExceptionMessages.SparkExceptionErrorPrefix)
+        handleQueryException(
+          r,
+          ExceptionMessages.SparkExceptionErrorPrefix,
+          originalThrowable = throwable)
       case t: Throwable =>
         val rootCauseClassName = t.getClass.getName
-        val errMsg = t.getMessage
+        // Read the message defensively: this is the error-handling path, so a hostile throwable
+        // whose getMessage() throws must not propagate a secondary failure, and a MetaException
+        // with a null message must not NPE on the contains(...) check below (the MetaException
+        // class-name guard alone does not short-circuit a null errMsg). Fall back to "" in both
+        // cases, which routes to the generic redaction path.
+        val errMsg =
+          try Option(t.getMessage).getOrElse("")
+          catch { case NonFatal(_) => "" }
         if (rootCauseClassName == "org.apache.hadoop.hive.metastore.api.MetaException" &&
           errMsg.contains("com.amazonaws.services.glue.model.AccessDeniedException")) {
+          // A curated SecurityException is substituted deliberately; its own message is the safe,
+          // actionable sentence for both channels, so the original MetaException wrapper is NOT
+          // forwarded to the operator log (that would surface the raw metastore text).
           val e = new SecurityException(ExceptionMessages.GlueAccessDeniedMessage)
           handleQueryException(e, ExceptionMessages.QueryRunErrorPrefix)
         } else {
-          handleQueryException(t, ExceptionMessages.QueryRunErrorPrefix)
+          handleQueryException(
+            t,
+            ExceptionMessages.QueryRunErrorPrefix,
+            originalThrowable = throwable)
         }
     }
   }
