@@ -114,7 +114,10 @@ case class JobOperator(
         })
     } catch {
       case e: TimeoutException =>
-        throwableHandler.recordThrowable(s"Preparation for query execution timed out", e)
+        throwableHandler.recordQueryThrowable(
+          s"Preparation for query execution timed out",
+          "Preparation for query execution timed out",
+          e)
         statement.timeout()
         dataToWrite = Some(
           constructErrorDF(
@@ -173,7 +176,12 @@ case class JobOperator(
           val originalError = throwableHandler.error
           val updatedErrorMessage = updateErrorMessage(processQueryException(t), originalError)
           incrementCounter(MetricConstants.RESULT_WRITER_FAILED_METRIC)
-          throwableHandler.recordThrowable(updatedErrorMessage, t)
+          // updatedErrorMessage is the customer error JSON kept for the persisted record; the
+          // driver log must not carry it or the raw throwable.
+          throwableHandler.recordQueryThrowable(
+            updatedErrorMessage,
+            "Fail to write query result",
+            t)
       } finally {
         emitTimerMetric(MetricConstants.QUERY_RESULT_WRITER_TIME_METRIC, resultWriterStartTime)
       }
@@ -184,8 +192,9 @@ case class JobOperator(
         statementExecutionManager.updateStatement(statement)
       } catch {
         case t: Throwable =>
-          throwableHandler.recordThrowable(
+          throwableHandler.recordQueryThrowable(
             s"Failed to update statement. Cause='${t.getMessage}', originalError='${throwableHandler.error}'",
+            "Failed to update statement",
             t)
       }
       emitTimerMetric(MetricConstants.QUERY_TOTAL_TIME_METRIC, startTime)

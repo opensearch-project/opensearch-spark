@@ -201,8 +201,13 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     // Assert index state is active now
     val latestLog = latestLogEntry(testLatestId)
     latestLog should contain("state" -> "failed")
-    latestLog("error").asInstanceOf[String] should (include("OpenSearchException") and
-      include("type=cluster_block_exception"))
+    val error = latestLog("error").asInstanceOf[String]
+    error should include("OpenSearch bulk write failed: 1 of 1 bulk items failed")
+    error should include("statusCode=[403]")
+    error should include("type=cluster_block_exception")
+    error should not include testFlintIndex
+    error should not include "index blocked by"
+    error should not include "OpenSearchException"
   }
 
   test(
