@@ -12,6 +12,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.TimeUnit;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -139,6 +140,7 @@ public class OpenSearchClientUtils {
           HttpAsyncClientBuilder delegate = builder.addInterceptorLast(
               new ResourceBasedAWSRequestSigningApacheInterceptor(
                   options.getServiceName(), options.getRegion(), customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), systemIndexName));
+          delegate = configureConnectionManager(delegate, options);
           return RetryableHttpAsyncClient.builder(delegate, options);
         }
     );
@@ -153,6 +155,7 @@ public class OpenSearchClientUtils {
         new UsernamePasswordCredentials(options.getUsername(), options.getPassword()));
     restClientBuilder.setHttpClientConfigCallback(builder -> {
       HttpAsyncClientBuilder delegate = builder.setDefaultCredentialsProvider(credentialsProvider);
+      delegate = configureConnectionManager(delegate, options);
       return RetryableHttpAsyncClient.builder(delegate, options);
     });
 
@@ -162,8 +165,18 @@ public class OpenSearchClientUtils {
   private static RestClientBuilder configureDefaultAuth(RestClientBuilder restClientBuilder, FlintOptions options) {
     // No auth
     restClientBuilder.setHttpClientConfigCallback(delegate ->
-        RetryableHttpAsyncClient.builder(delegate, options));
+        RetryableHttpAsyncClient.builder(configureConnectionManager(delegate, options), options));
     return restClientBuilder;
+  }
+
+  /**
+   * Bounds the lifetime of pooled connections. Without a time-to-live, connections closed by the
+   * server while idle remain in the pool and are reused, surfacing as ConnectionClosedException.
+   * Expiring connections after this duration lets the client discard them instead of reusing a
+   * connection the server has already closed.
+   */
+  private static HttpAsyncClientBuilder configureConnectionManager(HttpAsyncClientBuilder builder, FlintOptions options) {
+    return builder.setConnectionTimeToLive(options.getInactivityLimitMillis(), TimeUnit.MILLISECONDS);
   }
 
   /**

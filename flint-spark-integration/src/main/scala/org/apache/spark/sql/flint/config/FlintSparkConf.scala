@@ -259,6 +259,12 @@ object FlintSparkConf {
       .doc("connection duration in milliseconds")
       .createWithDefault(String.valueOf(FlintOptions.DEFAULT_CONNECTION_TIMEOUT_MILLIS))
 
+  val INACTIVITY_LIMIT_MILLIS =
+    FlintConfig(s"spark.datasource.flint.${FlintOptions.INACTIVITY_LIMIT_MILLIS}")
+      .datasourceOption()
+      .doc("expire pooled HTTP connections after this idle duration in milliseconds")
+      .createWithDefault(String.valueOf(FlintOptions.DEFAULT_INACTIVITY_LIMIT_MILLIS))
+
   val REQUEST_COMPLETION_DELAY_MILLIS =
     FlintConfig(s"spark.datasource.flint.${FlintOptions.REQUEST_COMPLETION_DELAY_MILLIS}")
       .datasourceOption()
@@ -417,6 +423,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       PASSWORD,
       SOCKET_TIMEOUT_MILLIS,
       CONNECTION_TIMEOUT_MILLIS,
+      INACTIVITY_LIMIT_MILLIS,
       JOB_TYPE,
       REPL_INACTIVITY_TIMEOUT_MILLIS,
       BATCH_BYTES)
