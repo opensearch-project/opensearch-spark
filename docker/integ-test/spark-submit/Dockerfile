@@ -1,7 +1,9 @@
 # Copyright OpenSearch Contributors
 # SPDX-License-Identifier: Apache-2.0
 
-FROM bitnami/spark:3.5.3
+# Bitnami removed the bitnami/spark Docker Hub tags; the archived images live under
+# bitnamilegacy/spark with the same /opt/bitnami layout, entrypoints, and paths.
+FROM bitnamilegacy/spark:3.5.3
 ARG FLINT_JAR
 ARG PPL_JAR
 ARG SQL_APP_JAR
