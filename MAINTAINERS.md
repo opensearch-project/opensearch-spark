@@ -7,8 +7,6 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 | Maintainer      | GitHub ID                                       | Affiliation |
 |-----------------|-------------------------------------------------| ----------- |
 | Eric Wei        | [mengweieric](https://github.com/mengweieric)   | Amazon      |
-| Joshua Li       | [joshuali925](https://github.com/joshuali925)   | Amazon      |
-| Rupal Mahajan   | [rupal-bq](https://github.com/rupal-bq)         | Amazon      |
 | Chen Dai        | [dai-chen](https://github.com/dai-chen)         | Amazon      |
 | Peng Huo        | [penghuo](https://github.com/penghuo)           | Amazon      |
 | Lior Perry      | [YANG-DB](https://github.com/YANG-DB)           | Amazon      |
@@ -24,3 +22,5 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 | Maintainer      | GitHub ID                                       |
 |-----------------|-------------------------------------------------|
 | Vamsi Manohar   | [vamsimanohar](https://github.com/vamsimanohar) |
+| Joshua Li | [joshuali925](https://github.com/joshuali925) |
+| Rupal Mahajan   | [rupal-bq](https://github.com/rupal-bq) |
