@@ -165,6 +165,16 @@ class FlintSparkConfSuite extends FlintSuite {
   /**
    * Delete index `indexNames` after calling `f`.
    */
+  test("inactivity_limit_millis defaults to FlintOptions default") {
+    val flintOptions = FlintSparkConf().flintOptions()
+    assert(flintOptions.getInactivityLimitMillis == FlintOptions.DEFAULT_INACTIVITY_LIMIT_MILLIS)
+  }
+
+  test("inactivity_limit_millis propagates from datasource option") {
+    val options = FlintSparkConf(Map("inactivity_limit_millis" -> "30000").asJava)
+    assert(options.flintOptions().getInactivityLimitMillis == 30000)
+  }
+
   protected def withSparkConf(configs: String*)(f: => Unit): Unit = {
     try {
       f
