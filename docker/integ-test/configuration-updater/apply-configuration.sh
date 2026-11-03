@@ -3,11 +3,13 @@
 # Copyright OpenSearch Contributors
 # SPDX-License-Identifier: Apache-2.0
 
-# Login to Minio
+# Login to Minio. The root credentials are the test S3 access/secret keys (set on the minio
+# service in docker-compose.yml), so the keys the tests use are valid out of the box and no
+# separate service account needs to be provisioned.
 curl -q \
      -c /tmp/minio-cookies.txt \
      -H 'Content-Type: application/json' \
-     -d '{"accessKey": "minioadmin", "secretKey": "minioadmin"}' \
+     -d "{\"accessKey\": \"${S3_ACCESS_KEY}\", \"secretKey\": \"${S3_SECRET_KEY}\"}" \
      http://minio-S3:9001/api/v1/login
 # Delete the test bucket
 curl -b /tmp/minio-cookies.txt \
@@ -27,19 +29,6 @@ curl -q \
      -H 'Content-Type: application/json' \
      -d '{"name": "test-resources", "versioning": {"enabled": false, "excludePrefixes": [], "excludeFolders": false}, "locking": true}' \
      http://minio-S3:9001/api/v1/buckets
-# Create the access key
-curl -q \
-     -b /tmp/minio-cookies.txt \
-     -X GET
-     "http://minio-S3:9001/api/v1/service-accounts/${S3_ACCESS_KEY}"
-if [ "$?" -ne "0" ]; then
-  curl -q \
-       -b /tmp/minio-cookies.txt \
-       -X POST \
-       -H 'Content-Type: application/json' \
-       -d "{\"policy\": \"\", \"accessKey\": \"${S3_ACCESS_KEY}\", \"secretKey\": \"${S3_SECRET_KEY}\", \"description\": \"\", \"comment\": \"\", \"name\": \"\", \"expiry\": null}" \
-       http://minio-S3:9001/api/v1/service-account-credentials
-fi
 
 # Login to OpenSearch Dashboards
 echo ">>> Login to OpenSearch dashboards"

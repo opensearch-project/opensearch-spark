@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ARG SPARK_VERSION=3.5.3
-FROM bitnami/spark:${SPARK_VERSION}
+# Bitnami removed the bitnami/spark Docker Hub tags; the archived images live under
+# bitnamilegacy/spark with the same /opt/bitnami layout, entrypoints, and paths.
+FROM bitnamilegacy/spark:${SPARK_VERSION}
 
 USER root
 RUN apt update

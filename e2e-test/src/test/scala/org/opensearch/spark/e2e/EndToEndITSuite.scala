@@ -74,6 +74,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
 
     val dockerProcess = new ProcessBuilder("docker", "compose", "up", "-d")
       .directory(new File(DOCKER_INTEG_DIR))
+      .redirectErrorStream(true)
       .start()
     var stopReading = false
     new Thread() {
@@ -86,7 +87,11 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
         }
       }
     }.start()
-    val completed = dockerProcess.waitFor(20, TimeUnit.MINUTES)
+    // Allow ample time for the cluster to come up. When the cluster images are not already
+    // cached locally, `docker compose up` also builds them, which includes downloading the
+    // Hadoop/Hive distributions for the metastore image -- slow when pulled from
+    // archive.apache.org. CI pre-builds the images in a separate step so this is usually fast.
+    val completed = dockerProcess.waitFor(40, TimeUnit.MINUTES)
     stopReading = true
     if (!completed) {
       throw new IllegalStateException("Unable to start docker cluster")
